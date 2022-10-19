@@ -1,0 +1,54 @@
+# FILES
+*.yaml
+*.pkl
+*.flist
+*.zip
+*.out
+*.npy
+*.gz
+*.ckpt
+*.pth
+*.log
+*.pyc
+*.csv
+*.yml
+*.ods
+*.ods#
+*.json
+build_docker.sh
+
+# Images / Videos
+#*.png
+#*.jpg
+*.jpeg
+*.m4a
+*.mkv
+*.mp4
+
+# Directories created by inpaintron
+.cache/
+test_examples/
+.vscode
+__pycache__
+.debug/
+**/.ipynb_checkpoints/**
+outputs/
+
+
+# From pip setup
+build/
+*.egg-info
+*.egg
+.npm/
+
+# From dockerfile
+.bash_history
+.viminfo
+.local/
+*.pickle
+*.onnx
+
+
+sbatch_files/
+figures/
+image_dump/
