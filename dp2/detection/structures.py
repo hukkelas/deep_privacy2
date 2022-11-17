@@ -59,7 +59,7 @@ class VehicleDetection:
 
 class FaceDetection:
 
-    def __init__(self, boxes_ltrb: torch.LongTensor, target_imsize, **kwargs) -> None:
+    def __init__(self, boxes_ltrb: torch.LongTensor, target_imsize, fdf128_expand: bool, **kwargs) -> None:
         self.boxes = boxes_ltrb.cpu()
         assert self.boxes.shape[1] == 4, self.boxes.shape
         self.target_imsize = tuple(target_imsize)
@@ -67,13 +67,15 @@ class FaceDetection:
         area = (self.boxes[:, 2] - self.boxes[:, 0]) * (self.boxes[:, 3] - self.boxes[:, 1]).view(-1)
         idx = area.argsort(descending=False)
         self.boxes = self.boxes[idx]
+        self.fdf128_expand = fdf128_expand
 
     def visualize(self, im):
         if len(self) == 0:
             return im
         orig_device = im.device
         for box in self.boxes:
-            e_box = torch.from_numpy(expand_bbox_fdf(box.numpy(), im.shape[-2:], True))
+            simple_expand = False if self.fdf128_expand else True
+            e_box = torch.from_numpy(expand_bbox_fdf(box.numpy(), im.shape[-2:], simple_expand))
             im = torchvision.utils.draw_bounding_boxes(im.cpu(), e_box[None], colors=(0, 0, 255), width=2)
         im = torchvision.utils.draw_bounding_boxes(im.cpu(), self.boxes, colors=(255, 0, 0), width=2)
 
