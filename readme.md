@@ -117,6 +117,23 @@ DeepPrivacy2 provides the following anonymization models:
 - [`configs/anonymizers/face.py`](configs/anonymizers/face.py): The face anonymizer only anonymizes a center crop of the face.
 - [`configs/anonymizers/face_fdf128.py`](configs/anonymizers/face_fdf128.py): Same as [`configs/anonymizers/face.py`](configs/anonymizers/face.py), but the generator is trained on lower resolution images (128x128 or lower). Recommended to use if you will not anonymize any faces larger than 128x128. **Model will be released soon.**
 
+## Attribute guided anonymization
+DeepPrivacy2 allows for controllable anonymization through text prompts by adapting [StyleMC](https://github.com/catlab-team/stylemc).
+StyleMC finds global semantically meaningful directions in the GAN latent space by manipulating images towards a given text prompt with a [CLIP](https://github.com/openai/CLIP)-based loss.
+![](media/stylemc_example.jpg)
+
+The repository includes a ![gradio](https://gradio.app/) demo for interactive text-guided anonymization.
+To use the demo, first:
+
+1. Download the FDF256 dataset (see below). Only the validation set is required.
+2. Run the following:
+```
+python3 attribute_guided_demo.py
+```
+
+The script will spin up a local webserver.
+
+
 ## Training
 First, download dataset for training (see below).
 

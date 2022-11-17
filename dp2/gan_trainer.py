@@ -57,6 +57,7 @@ def check_ddp_consistency(module):
         torch.distributed.broadcast(tensor=other, src=0)
         assert (tensor == other).all(), fullname
 
+
 class AverageMeter():
     def __init__(self) -> None:
         self.to_log = dict()
