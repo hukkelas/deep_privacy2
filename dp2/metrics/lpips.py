@@ -58,8 +58,8 @@ class SampleSimilarityLPIPS(torch.nn.Module):
     
     def get_feats(self, x):
         assert x.dim() == 4 and x.shape[1] == 3, 'Input 0 is not Bx3xHxW'
-        if x.shape[-2] < 16: # Resize images < 16x16
-            f = 16 / x.shape[-2]
+        if x.shape[-2] < 16 or x.shape[-1] < 16: # Resize images < 16x16
+            f = 2
             size = tuple([int(f*_) for _ in x.shape[-2:]])
             x = torch.nn.functional.interpolate(x, size=size, mode="bilinear", align_corners=False)
         in0_input = self.normalize(x)

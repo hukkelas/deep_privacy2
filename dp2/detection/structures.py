@@ -84,7 +84,8 @@ class FaceDetection:
     def get_crop(self, idx: int, im):
         assert idx < len(self)
         box = self.boxes[idx].numpy()
-        expanded_boxes = expand_bbox_fdf(box, im.shape[-2:], True)
+        simple_expand = False if self.fdf128_expand else True
+        expanded_boxes = expand_bbox_fdf(box, im.shape[-2:], simple_expand)
         im = cut_pad_resize(im, expanded_boxes, self.target_imsize, fdf_resize=True)
         area = (self.boxes[:, 2] - self.boxes[:, 0]) * (self.boxes[:, 3] - self.boxes[:, 1]).view(-1)
 

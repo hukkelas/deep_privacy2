@@ -156,7 +156,7 @@ def visualize_batch(
         **kwargs) -> torch.ByteTensor:
     img = denormalize_img(img).mul(255).byte()
     img = draw_mask(img, mask)
-    if maskrcnn_mask is not None:
+    if maskrcnn_mask is not None and maskrcnn_mask.shape == mask.shape:
         img = draw_mask(img, maskrcnn_mask)
     if vertices is not None or embedding is not None:
         assert E_mask is not None
@@ -346,6 +346,7 @@ def draw_mask(im: torch.Tensor, mask: torch.Tensor, t=0.2, color=(255, 255, 255)
         Supports multiple instances.
         mask shape: [N, C, H, W], where C is different instances in same image.
     """
+    print(im.shape, mask.shape)
     orig_imshape = im.shape
     if mask.numel() == 0: return im
     assert len(mask.shape) in (3, 4), mask.shape
