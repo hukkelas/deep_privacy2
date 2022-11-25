@@ -180,10 +180,10 @@ The default dataset directory is ./data. If you want to change the dataset direc
 
 
 ### FDF256
-Follow the instructions [here](github.com/hukkelas/FDF/FDF256.md)to download the FDF256 dataset. The dataset should be placed in the directory: `data/fdf256`.
+Follow the instructions [here](https://github.com/hukkelas/FDF/blob/master/FDF256.md) to download the FDF256 dataset. The dataset should be placed in the directory: `data/fdf256`.
 
 ### FDH
-Follow the instructions [here](github.com/hukkelas/FDH) to download the FDH dataset. The dataset should be placed in the directory: `data/fdh`.
+Follow the instructions [here](https://www.github.com/hukkelas/FDH) to download the FDH dataset. The dataset should be placed in the directory: `data/fdh`.
 
 
 ## License
