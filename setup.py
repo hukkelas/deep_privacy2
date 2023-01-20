@@ -38,6 +38,6 @@ setup(
         "scipy==1.7.1",
         "webdataset==0.2.26",
         "scikit-image",
-        "imageio"==2.4.1,
+        "imageio==2.4.1",
     ],
 )
