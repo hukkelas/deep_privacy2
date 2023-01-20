@@ -37,6 +37,7 @@ setup(
         "pillow==8.3.1",
         "scipy==1.7.1",
         "webdataset==0.2.26",
-        "scikit-image"
+        "scikit-image",
+        "imageio"==2.4.1,
     ],
 )
