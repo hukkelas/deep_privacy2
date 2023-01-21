@@ -95,14 +95,14 @@ Options:
 
 **Singe image anonymization**
 ```
-python3 anonymize.py configs/anonymizers/FB_cse.py -i path_to_image.png --output-path output.png
+python3 anonymize.py configs/anonymizers/FB_cse.py -i path_to_image.png --output_path output.png
 ```
 
 **Folder anonymization**
 
 If a folder is given as the input, all image and video files in the given folder will be anonymized and placed under --output_path. The script will duplicate the directory structure/filenames in the given folder for the output.
 ```
-python3 anonymize.py configs/anonymizers/FB_cse.py path/to/input/folder --save --output_path output_folder
+python3 anonymize.py configs/anonymizers/FB_cse.py -i path/to/input/folder --output_path output_folder
 ```
 
 **Video anonymization**
