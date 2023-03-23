@@ -19,7 +19,7 @@ def compute_fid_clip(
         cache_directory,
         data_len=None,
         **kwargs
-        ) -> dict:
+    ) -> dict:
     """
     FID CLIP following the description in The Role of ImageNet Classes in Frechet Inception Distance, Thomas Kynkaamniemi et al.
     Args:
@@ -75,7 +75,7 @@ def compute_fid_clip(
             cache_directory.mkdir(exist_ok=True, parents=True)
             with open(fid_cache_path, "wb") as fp:
                 pickle.dump(fid_stat_real, fp)
-    
+
     if tops.rank() == 0:
         print("Starting calculation of fid from features of shape:", fid_features_fake.shape)
         fid_stat_fake = fid_features_to_statistics(fid_features_fake)

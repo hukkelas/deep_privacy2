@@ -3,12 +3,14 @@ import torch
 import tops
 import torch.nn as nn
 
+
 class Sequential(nn.Sequential):
 
     def forward(self, x: Dict[str, torch.Tensor], **kwargs) -> Dict[str, torch.Tensor]:
         for module in self:
             x = module(x, **kwargs)
         return x
+
 
 class Module(nn.Module):
 

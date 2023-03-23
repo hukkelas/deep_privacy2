@@ -13,7 +13,8 @@ discriminator = L(SG2Discriminator)(
     input_condition=True,
     conv_clamp=256,
     input_cse=False,
-    cse_nc="${data.cse_nc}"
+    cse_nc="${data.cse_nc}",
+    fix_residual=False,
 )
 
 

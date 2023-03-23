@@ -54,10 +54,12 @@ def start_train(rank, world_size, debug, cfg_path, temp_dir, benchmark: bool):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         warnings.filterwarnings("ignore", category=UserWarning)
     tops.set_seed(cfg.train.seed + rank)
+    logger.log("Loading dataset.")
     dl_val = instantiate(cfg.data.val.loader, channels_last=cfg.train.channels_last)
     dl_train = instantiate(cfg.data.train.loader, channels_last=cfg.train.channels_last)
     dl_train = iter(dl_train)
 
+    logger.log("Initializing models.")
     G = instantiate(cfg.generator)
     D = tops.to_cuda(instantiate(cfg.discriminator))
     if tops.rank() == 0:
@@ -68,13 +70,22 @@ def start_train(rank, world_size, debug, cfg_path, temp_dir, benchmark: bool):
     G_EMA = utils.EMA(G, cfg.train.batch_size * world_size, **cfg.EMA)
     G = tops.to_cuda(G)
     if world_size > 1:
+        logger.log("Syncing models accross GPUs")
         # Distributed is implemented self. # Buffers are never broadcasted during training.
         for module in [G_EMA, G, D]:
             params_and_buffers = list(module.named_parameters())
             params_and_buffers += list(module.named_buffers())
             for name, param in params_and_buffers:
                 torch.distributed.broadcast(param, src=0)
-
+    if cfg.train.compile_D.enabled:
+        compile_kwargs = instantiate(cfg.train.compile_D)
+        compile_kwargs.pop("enabled")
+        D = torch.compile(D, **compile_kwargs)
+    if cfg.train.compile_G.enabled:
+        compile_kwargs = instantiate(cfg.train.compile_G)
+        compile_kwargs.pop("enabled")
+        G = torch.compile(G, **compile_kwargs)
+    logger.log("Initializing optimizers")
     grad_scaler_D = instantiate(cfg.train.amp.scaler_D)
     grad_scaler_G = instantiate(cfg.train.amp.scaler_G)
 
@@ -84,16 +95,6 @@ def start_train(rank, world_size, debug, cfg_path, temp_dir, benchmark: bool):
     loss_fnc = instantiate(cfg.loss_fnc, D=D, G=G)
     logger.add_scalar("stats/gpu_batch_size", cfg.train.batch_size)
     logger.add_scalar("stats/ngpus", world_size)
-
-    @torch.no_grad()
-    def dryrun():
-        batch = next(dl_train)
-        G.eval()
-        D.eval()
-        tops.print_module_summary(G, batch)
-        # tops.print_module_summary(D, batch)
-        G.train()
-        D.train()
 
     D.train()
     G.train()
@@ -115,7 +116,7 @@ def start_train(rank, world_size, debug, cfg_path, temp_dir, benchmark: bool):
     if cfg.train.channels_last:
         G = G.to(memory_format=torch.channels_last)
         D = D.to(memory_format=torch.channels_last)
-#    dryrun()
+
     if tops.world_size() > 1:
         torch.distributed.barrier()
 
@@ -153,7 +154,9 @@ def start_train(rank, world_size, debug, cfg_path, temp_dir, benchmark: bool):
     except Exception as e:
         traceback.print_exc()
         exit()
-    metrics = cfg.data.evaluation_fn(generator=G_EMA, dataloader=dl_val)
+    tops.set_AMP(False)
+    tops.set_seed(0)
+    metrics = instantiate(cfg.data.evaluation_fn)(generator=G_EMA, dataloader=dl_val)
     metrics = {f"metrics_final/{k}": v for k, v in metrics.items()}
     logger.add_dict(metrics, level=logger.logger.INFO)
     if world_size > 1:

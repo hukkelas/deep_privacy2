@@ -2,7 +2,8 @@ import pathlib
 from tops.config import LazyConfig
 from .torch_utils import (
     im2torch, im2numpy, denormalize_img, set_requires_grad, forward_D_fake,
-    binary_dilation, crop_box, remove_pad
+    binary_dilation, crop_box, remove_pad,
+    torch_wasserstein_loss
 )
 from .ema import EMA
 from .utils import init_tops, tqdm_, print_config, config_to_str, trange_

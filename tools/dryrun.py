@@ -13,7 +13,7 @@ def run(config_path):
     G = tops.to_cuda(instantiate(cfg.generator))
 
     D = tops.to_cuda(instantiate(cfg.discriminator))
-    cfg.train.batch_size = 1
+    cfg.train.batch_size = 2
     print(G)
     dl_val = instantiate(cfg.data.val.loader)
     cfg.train.amp.scaler_D.init_scale = 1

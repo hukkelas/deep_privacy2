@@ -191,7 +191,7 @@ def cut_face(im, bbox, simple_expand=False, pad_value=0, pad_im=True):
 def expand_bbox(
         bbox_ltrb, imshape, simple_expand, default_to_simple=False,
         expansion_factor=0.35):
-    assert bbox_ltrb.shape == (4,), f"BBox shape was: {bbox.shape}"
+    assert bbox_ltrb.shape == (4,), f"BBox shape was: {bbox_ltrb.shape}"
     bbox = bbox_ltrb.astype(float)
     # FDF256 uses simple expand with ratio 0.4
     if simple_expand:
@@ -200,4 +200,3 @@ def expand_bbox(
         return expand_bounding_box(bbox, expansion_factor, imshape)
     except AssertionError:
         return expand_bbox_simple(bbox, expansion_factor * 2)
-

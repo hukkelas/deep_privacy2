@@ -10,20 +10,21 @@ from detectron2.data.transforms import ResizeShortestEdge
 from torchvision.transforms.functional import resize
 
 
-
 model_urls = {
     "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml": "https://dl.fbaipublicfiles.com/detectron2/COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x/139653917/model_final_2d9806.pkl",
 
 }
+
+
 class MaskRCNNDetector:
 
     def __init__(
             self,
             cfg_name: str = "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml",
             score_thres: float = 0.9,
-            class_filter=["person"], #["car", "bicycle","truck", "bus",  "backpack"]
-            fp16_inference: bool = False 
-            ) -> None:
+            class_filter=["person"],  # ["car", "bicycle","truck", "bus",  "backpack"]
+            fp16_inference: bool = False
+    ) -> None:
         cfg = model_zoo.get_config(cfg_name)
         cfg.MODEL.DEVICE = str(tops.get_device())
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = score_thres
@@ -75,4 +76,3 @@ class MaskRCNNDetector:
             "classes": output.get("pred_classes")[idx2keep],
             "is_person": is_person
         }
-

@@ -55,8 +55,6 @@ models = {
 }
 
 
-
-
 class KeypointMaskRCNN:
 
     def __init__(self, model_name: str, score_threshold: float) -> None:
@@ -71,7 +69,7 @@ class KeypointMaskRCNN:
             assert isinstance(self.model.roi_heads, StandardROIHeads)
             assert hasattr(self.model.roi_heads.box_predictor, "test_score_thresh")
             self.model.roi_heads.box_predictor.test_score_thresh = score_threshold
-        
+
         self.test_transform = test_transform
         assert len(self.test_transform) == 1
         self.test_transform = self.test_transform[0]
@@ -82,7 +80,8 @@ class KeypointMaskRCNN:
     def resize_im(self, im):
         H, W = im.shape[-2:]
         if self.test_transform.is_range:
-            size = np.random.randint(self.test_transform.short_edge_length[0], self.test_transform.short_edge_length[1] + 1)
+            size = np.random.randint(
+                self.test_transform.short_edge_length[0], self.test_transform.short_edge_length[1] + 1)
         else:
             size = np.random.choice(self.test_transform.short_edge_length)
         newH, newW = ResizeShortestEdge.get_output_shape(H, W, size, self.test_transform.max_size)
@@ -93,15 +92,16 @@ class KeypointMaskRCNN:
         return self.forward(*args, **kwargs)
 
     @torch.no_grad()
-    def forward(self, im: torch.Tensor) -> Instances:
+    def forward(self, im: torch.Tensor):
         assert im.ndim == 3
         if self.image_format == "BGR":
             im = im.flip(0)
         H, W = im.shape[-2:]
-        im = self.resize_im(im)
         im = im.float()
+        im = self.resize_im(im)
+
         inputs = dict(image=im, height=H, width=W)
-        # instances contains 
+        # instances contains
         # dict_keys(['pred_boxes', 'scores', 'pred_classes', 'pred_masks', 'pred_keypoints', 'pred_keypoint_heatmaps'])
         instances = self.model([inputs])[0]["instances"]
         return dict(

@@ -42,7 +42,7 @@ class CocoCSE(torch.utils.data.Dataset):
         image_paths.sort()
         embedding_paths = [
             self.dirpath.joinpath("embedding", x.stem + ".npy") for x in image_paths
-            ]
+        ]
         return image_paths, embedding_paths
 
     def __len__(self):

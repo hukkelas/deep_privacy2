@@ -81,7 +81,7 @@ def get_expanded_bbox(
         target_aspect_ratio: float):
     bbox_XYXY = bbox_XYXY.long().cpu().numpy().tolist()
     # Expand each axis of the bounding box by a minimum percentage
-    bbox_XYXY = expand_axises_by_percentage(bbox_XYXY, imshape, axis_minimum_expansion) 
+    bbox_XYXY = expand_axises_by_percentage(bbox_XYXY, imshape, axis_minimum_expansion)
     # Find the minimum bbox with the aspect ratio. Can be outside of imshape
     bbox_XYXY = expand_bbox_to_ratio(bbox_XYXY, imshape, target_aspect_ratio)
     # Expands square box such that X% of the bbox is background
@@ -93,7 +93,7 @@ def get_expanded_bbox(
 def include_box(bbox, minimum_area, aspect_ratio_range, min_bbox_ratio_inside, imshape):
     def area_inside_ratio(bbox, imshape):
         area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-        area_inside = (min(bbox[2], imshape[1]) - max(0,bbox[0])) * (min(imshape[0],bbox[3]) - max(0,bbox[1]))
+        area_inside = (min(bbox[2], imshape[1]) - max(0, bbox[0])) * (min(imshape[0], bbox[3]) - max(0, bbox[1]))
         return area_inside / area
     ratio = (bbox[3] - bbox[1]) / (bbox[2] - bbox[0])
     area = (bbox[3] - bbox[1]) * (bbox[2] - bbox[0])

@@ -50,23 +50,3 @@ def compute_fid(generator, dataloader, real_directory, n_source, zero_z, n_diver
         batch_size=dataloader.batch_size
     )
     return metrics["frechet_inception_distance"]
-
-
-if __name__ == "__main__":
-    import click
-    from dp2.config import Config
-    from dp2.data import build_dataloader_val
-    from dp2.infer import build_trained_generator
-    @click.command()
-    @click.argument("config_path")
-    @click.option("--n_source", default=200, type=int)
-    @click.option("--n_diverse", default=5, type=int)
-    @click.option("--zero_z", default=False, is_flag=True)
-    def run(config_path, n_source: int, n_diverse: int, zero_z: bool):
-        cfg = Config.fromfile(config_path)
-        dataloader = build_dataloader_val(cfg)
-        generator, _ = build_trained_generator(cfg)
-        print(compute_fid(
-            generator, dataloader, cfg.fid_real_directory, n_source, zero_z, n_diverse))
-
-    run()

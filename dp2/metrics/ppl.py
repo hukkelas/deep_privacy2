@@ -5,6 +5,7 @@ from dp2 import utils
 from torch_fidelity.helpers import get_kwarg, vassert
 from torch_fidelity.defaults import DEFAULTS as PPL_DEFAULTS
 from torch_fidelity.utils import sample_random, batch_interp, create_sample_similarity
+from torchvision.transforms.functional import resize
 
 
 def slerp(a, b, t):
@@ -21,10 +22,11 @@ def slerp(a, b, t):
 
 @torch.no_grad()
 def calculate_ppl(
-        dataloader, 
+        dataloader,
         generator,
         latent_space=None,
         data_len=None,
+        upsample_size=None,
         **kwargs) -> dict:
     """
     Inspired by https://github.com/NVlabs/stylegan/blob/master/metrics/perceptual_path_length.py
@@ -32,6 +34,7 @@ def calculate_ppl(
     if latent_space is None:
         latent_space = generator.latent_space
     assert latent_space in ["Z", "W"], f"Not supported latent space: {latent_space}"
+    assert len(upsample_size) == 2
     epsilon = PPL_DEFAULTS["ppl_epsilon"]
     interp = PPL_DEFAULTS['ppl_z_interp_mode']
     similarity_name = PPL_DEFAULTS['ppl_sample_similarity']
@@ -62,7 +65,7 @@ def calculate_ppl(
     z1 = sample_random(rng, (data_len, generator.z_channels), "normal")
     if latent_space == "Z":
         z1 = batch_interp(z0, z1, epsilon, interp)
-
+    print("Computing PPL IN", latent_space)
     distances = torch.zeros(data_len, dtype=torch.float32, device=tops.get_device())
     print(distances.shape)
     end = 0
@@ -76,12 +79,15 @@ def calculate_ppl(
         if latent_space == "W":
             w0 = generator.get_w(batch_lat_e0, update_emas=False)
             w1 = generator.get_w(batch_lat_e1, update_emas=False)
-            w1 = w0.lerp(w1, epsilon) # PPL end
+            w1 = w0.lerp(w1, epsilon)  # PPL end
             rgb1 = generator(**batch, w=w0)["img"]
             rgb2 = generator(**batch, w=w1)["img"]
         else:
             rgb1 = generator(**batch, z=batch_lat_e0)["img"]
             rgb2 = generator(**batch, z=batch_lat_e1)["img"]
+        if rgb1.shape[-2] < upsample_size[0] or rgb1.shape[-1] < upsample_size[1]:
+            rgb1 = resize(rgb1, upsample_size, antialias=True)
+            rgb2 = resize(rgb2, upsample_size, antialias=True)
         rgb1 = utils.denormalize_img(rgb1).mul(255).byte()
         rgb2 = utils.denormalize_img(rgb2).mul(255).byte()
 

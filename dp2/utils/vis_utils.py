@@ -70,17 +70,34 @@ def get_coco_keypoints():
     return keypoints, keypoint_flip_map, connectivity_indices
 
 
+def get_coco_colors():
+    return [
+        *["red"]*5,
+        "blue",
+        "green",
+        "blue",
+        "green",
+        "blue",
+        "green",
+        "purple",
+        "orange",
+        "purple",
+        "orange",
+        "purple",
+        "orange",
+    ]
+
+
 @torch.no_grad()
 def draw_keypoints(
     image: torch.Tensor,
     keypoints: torch.Tensor,
     connectivity: Optional[List[Tuple[int, int]]] = None,
+    visible: Optional[List[List[bool]]] = None,
     colors: Optional[Union[str, Tuple[int, int, int]]] = None,
-    radius: int = 1,
-    width: int = 1,
+    radius: int = None,
+    width: int = None,
 ) -> torch.Tensor:
-
-
     """
     Function taken from torchvision source code.  Added in torchvision 0.12
 
@@ -113,24 +130,39 @@ def draw_keypoints(
 
     if keypoints.ndim != 3:
         raise ValueError("keypoints must be of shape (num_instances, K, 2)")
+    if width is None:
+        width = int(max(max(image.shape[-2:]) * 0.01, 1))
+    if radius is None:
+        radius = int(max(max(image.shape[-2:]) * 0.01, 1))
 
     ndarr = image.permute(1, 2, 0).cpu().numpy()
     img_to_draw = Image.fromarray(ndarr)
     draw = ImageDraw.Draw(img_to_draw)
-    img_kpts = keypoints.to(torch.int64).tolist()
+    if isinstance(keypoints, torch.Tensor):
+        img_kpts = keypoints.to(torch.int64).tolist()
+    else:
+        assert isinstance(keypoints, np.ndarray)
+        img_kpts = keypoints.astype(int).tolist()
+    colors = get_coco_colors()
+    for inst_id, kpt_inst in enumerate(img_kpts):
 
-    for kpt_id, kpt_inst in enumerate(img_kpts):
-        for inst_id, kpt in enumerate(kpt_inst):
+        for kpt_id, kpt in enumerate(kpt_inst):
+            if visible is not None and int(visible[inst_id][kpt_id]) == 0:
+                continue
             x1 = kpt[0] - radius
             x2 = kpt[0] + radius
             y1 = kpt[1] - radius
             y2 = kpt[1] + radius
-            draw.ellipse([x1, y1, x2, y2], fill=colors, outline=None, width=0)
 
-        if connectivity:
+            draw.ellipse([x1, y1, x2, y2], fill=colors[kpt_id], outline=None, width=0)
+
+        if connectivity is not None:
             for connection in connectivity:
                 if connection[1] >= len(kpt_inst) or connection[0] >= len(kpt_inst):
                     continue
+                if visible is not None and int(visible[inst_id][connection[1]]) == 0 or int(visible[inst_id][connection[0]]) == 0:
+                    continue
+
                 start_pt_x = kpt_inst[connection[0]][0]
                 start_pt_y = kpt_inst[connection[0]][1]
 
@@ -139,50 +171,54 @@ def draw_keypoints(
 
                 draw.line(
                     ((start_pt_x, start_pt_y), (end_pt_x, end_pt_y)),
-                    width=width,
+                    width=width, fill=colors[connection[1]]
                 )
 
     return torch.from_numpy(np.array(img_to_draw)).permute(2, 0, 1).to(dtype=torch.uint8)
 
+
+def visualize_keypoints(img, keypoints):
+    img = img.clone()
+    keypoints = keypoints.clone()
+    keypoints[:, :, 0] *= img.shape[-1]
+    keypoints[:, :, 1] *= img.shape[-2]
+    _, _, connectivity = get_coco_keypoints()
+    connectivity = np.array(connectivity)
+    visible = None
+    if keypoints.shape[-1] == 3:
+        visible = keypoints[:, :, 2] > 0
+    for idx in range(img.shape[0]):
+        img[idx] = draw_keypoints(
+            img[idx], keypoints[idx:idx+1].long(), colors="red",
+            connectivity=connectivity, visible=visible[idx:idx+1])
+    return img
+
+
 def visualize_batch(
         img: torch.Tensor, mask: torch.Tensor,
-        vertices: torch.Tensor=None,
-        E_mask: torch.Tensor=None,
-        embed_map: torch.Tensor=None,
-        semantic_mask: torch.Tensor=None,
-        embedding: torch.Tensor=None,
-        keypoints: torch.Tensor=None,
-        maskrcnn_mask: torch.Tensor=None,
+        vertices: torch.Tensor = None,
+        E_mask: torch.Tensor = None,
+        embed_map: torch.Tensor = None,
+        semantic_mask: torch.Tensor = None,
+        embedding: torch.Tensor = None,
+        keypoints: torch.Tensor = None,
+        maskrcnn_mask: torch.Tensor = None,
         **kwargs) -> torch.ByteTensor:
-    img = denormalize_img(img).mul(255).byte()
+    img = denormalize_img(img).mul(255).round().clamp(0, 255).byte()
     img = draw_mask(img, mask)
     if maskrcnn_mask is not None and maskrcnn_mask.shape == mask.shape:
         img = draw_mask(img, maskrcnn_mask)
     if vertices is not None or embedding is not None:
         assert E_mask is not None
         assert embed_map is not None
+        img, E_mask, embedding, embed_map, vertices = tops.to_cpu([
+            img, E_mask, embedding, embed_map, vertices
+        ])
         img = draw_cse(img, E_mask, embedding, embed_map, vertices)
     elif semantic_mask is not None:
         img = draw_segmentation_masks(img, semantic_mask)
     if keypoints is not None:
-        keypoints = keypoints.clone()
-        keypoints[:, :, 0] *= img.shape[-1]
-        keypoints[:, :, 1] *= img.shape[-2]
-        _, _, connectivity = get_coco_keypoints()
-        connectivity = np.array(connectivity)
-        for idx in range(img.shape[0]):
-            if keypoints.shape[-1] == 3:
-                visible = (keypoints[idx:idx+1, :, 2] > 0 ).view(-1)
-            else:
-                visible = torch.ones(keypoints.shape[1], device=keypoints.device, dtype=torch.bool)
-
-            if keypoints.shape[1] == 17: # COCO Connectivity
-                c = connectivity[visible.cpu().numpy()].tolist()
-            else:
-                c = None
-
-            kp = keypoints[idx:idx+1, visible].long()
-            img[idx] = draw_keypoints(img[idx], kp, colors="red", connectivity=c)
+        img = visualize_keypoints(img, keypoints)
     return img
 
 
@@ -192,7 +228,7 @@ def draw_cse(
         embedding: torch.Tensor = None,
         embed_map: torch.Tensor = None,
         vertices: torch.Tensor = None, t=0.7
-        ):
+):
     """
         E_seg: 1 for areas with embedding
     """
@@ -205,11 +241,12 @@ def draw_cse(
         embedding = embedding.view(-1, *embedding.shape[-3:])
         vertices = torch.stack(
             [from_E_to_vertex(e[None], e_seg[None].logical_not().float(), embed_map)
-            for e, e_seg in zip(embedding, E_seg)])
+             for e, e_seg in zip(embedding, E_seg)])
 
     i = np.arange(0, 256, dtype=np.uint8).reshape(1, -1)
     colormap_JET = torch.from_numpy(cv2.applyColorMap(i, cv2.COLORMAP_JET)[0])
-    color_embed_map, _ = np.load(download_file("https://dl.fbaipublicfiles.com/densepose/data/cse/mds_d=256.npy"), allow_pickle=True)
+    color_embed_map, _ = np.load(download_file(
+        "https://dl.fbaipublicfiles.com/densepose/data/cse/mds_d=256.npy"), allow_pickle=True)
     color_embed_map = torch.from_numpy(color_embed_map).float()[:, 0]
     color_embed_map -= color_embed_map.min()
     color_embed_map /= color_embed_map.max()
@@ -219,6 +256,7 @@ def draw_cse(
     vertices = vertices.view(-1, *vertices.shape[-2:])
     E_seg = E_seg.view(-1, 1, *E_seg.shape[-2:])
     # This operation might be good to do on cpu...
+
     E_color = vertx2colormap[vertices.long()]
     E_color = E_color.to(E_seg.device)
     E_color = E_color.permute(0, 3, 1, 2)
@@ -255,12 +293,11 @@ def draw_cse_all(
         im_ = crop_box(im, box)
         s = remove_pad(s, box, im.shape[1:])
         E = remove_pad(E, box, im.shape[1:])
-        E_color = draw_cse(img=im_, E_seg=s[None], embedding=E[None],embed_map=embed_map)[0]
+        E_color = draw_cse(img=im_, E_seg=s[None], embedding=E[None], embed_map=embed_map)[0]
         E_color = E_color.to(im.device)
         s = s.bool().repeat(3, 1, 1)
         crop_box(im, box)[s] = (im_[s] * (1-t) + t * E_color[s]).byte()
     return im
-
 
 
 @torch.no_grad()
@@ -270,7 +307,6 @@ def draw_segmentation_masks(
     alpha: float = 0.8,
     colors: Optional[List[Union[str, Tuple[int, int, int]]]] = None,
 ) -> torch.Tensor:
-
     """
     Draws segmentation masks on given RGB image.
     The values of the input image should be uint8 between 0 and 255.
@@ -315,7 +351,6 @@ def draw_segmentation_masks(
     if colors is not None and num_masks > len(colors):
         raise ValueError(f"There are more masks ({num_masks}) than colors ({len(colors)})")
 
-
     if not isinstance(colors, list):
         colors = [colors]
     if not isinstance(colors[0], (tuple, str)):
@@ -346,9 +381,9 @@ def draw_mask(im: torch.Tensor, mask: torch.Tensor, t=0.2, color=(255, 255, 255)
         Supports multiple instances.
         mask shape: [N, C, H, W], where C is different instances in same image.
     """
-    print(im.shape, mask.shape)
     orig_imshape = im.shape
-    if mask.numel() == 0: return im
+    if mask.numel() == 0:
+        return im
     assert len(mask.shape) in (3, 4), mask.shape
     mask = mask.view(-1, *mask.shape[-3:])
     im = im.view(-1, *im.shape[-3:])
@@ -363,7 +398,7 @@ def draw_mask(im: torch.Tensor, mask: torch.Tensor, t=0.2, color=(255, 255, 255)
     inner_border = binary_erosion(mask, kernel).logical_xor(mask)
     inner_border = inner_border.any(dim=1, keepdim=True).repeat(1, 3, 1, 1) > 0
     mask = (mask == 0).any(dim=1, keepdim=True).repeat(1, 3, 1, 1)
-    color = torch.tensor(color).to(im.device).byte().view(1, 3, 1, 1)#.repeat(1, *im.shape[1:])
+    color = torch.tensor(color).to(im.device).byte().view(1, 3, 1, 1)  # .repeat(1, *im.shape[1:])
     color = color.repeat(im.shape[0], 1, *im.shape[-2:])
     im[mask] = (im[mask] * (1-t) + t * color[mask]).byte()
     im[outer_border] = 255
@@ -395,14 +430,11 @@ def draw_cropped_keypoints(im: torch.Tensor, all_keypoints: torch.Tensor, boxes:
         keypoints = keypoints.long()
         _, _, connectivity = get_coco_keypoints()
         connectivity = np.array(connectivity)
-        visible = (keypoints[:, 2] > 0)
-        if keypoints.shape[0] == 17: # COCO Connectivity
-            c = connectivity[visible.cpu().numpy()].tolist()
-        else:
-            c = None
+        visible = (keypoints[:, 2] > .5)
         # Remove padding from keypoints before visualization
         keypoints[:, 0] += min(x0, 0)
         keypoints[:, 1] += min(y0, 0)
-        im_with_kp = draw_keypoints(crop_box(im, box), keypoints[None, visible, :2], colors="red", connectivity=c)
+        im_with_kp = draw_keypoints(
+            crop_box(im, box), keypoints[None], colors="red", connectivity=connectivity, visible=visible[None])
         crop_box(im, box).copy_(im_with_kp)
     return im

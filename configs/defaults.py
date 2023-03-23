@@ -38,6 +38,14 @@ train = dict(
     grid_sample_gradfix_enabled=True,
     conv2d_gradfix_enabled=False,
     channels_last=False,
+    compile_G=dict(
+        enabled=False,
+        mode="default" # default, reduce-overhead or max-autotune
+    ),
+    compile_D=dict(
+        enabled=False,
+        mode="default" # default, reduce-overhead or max-autotune
+    )
 )
 
 # exponential moving average

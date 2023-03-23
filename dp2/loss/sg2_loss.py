@@ -7,6 +7,7 @@ from .utils import nsgan_d_loss, nsgan_g_loss
 from .r1_regularization import r1_regularization
 from .pl_regularization import PLRegularization
 
+
 class StyleGAN2Loss:
 
     def __init__(
@@ -57,10 +58,11 @@ class StyleGAN2Loss:
             tops.assert_shape(epsilon_penalty, total_loss.shape)
             total_loss = total_loss + epsilon_penalty * self.EP_lambd
 
-        # Improved gradient penalty with lazy regularization 
+        # Improved gradient penalty with lazy regularization
         # Gradient penalty applies specialized autocast.
         if do_GP:
-            gradient_pen, grad_unscaled = self.r1_reg(batch["img"], D_out_real["score"], batch["mask"], scaler=grad_scaler)
+            gradient_pen, grad_unscaled = self.r1_reg(
+                batch["img"], D_out_real["score"], batch["mask"], scaler=grad_scaler)
             to_log["r1_gradient_penalty"] = grad_unscaled.mean()
             tops.assert_shape(gradient_pen, total_loss.shape)
             total_loss = total_loss + gradient_pen

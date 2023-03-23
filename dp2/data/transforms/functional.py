@@ -2,10 +2,11 @@ import torchvision.transforms.functional as F
 import torch
 import pickle
 from tops import download_file, assert_shape
-from typing import  Dict
+from typing import Dict
 from functools import lru_cache
 
-global symmetry_transform 
+global symmetry_transform
+
 
 @lru_cache(maxsize=1)
 def get_symmetry_transform(symmetry_url):
@@ -17,8 +18,8 @@ def get_symmetry_transform(symmetry_url):
 
 hflip_handled_cases = set([
     "keypoints", "img", "mask", "border", "semantic_mask", "vertices", "E_mask", "embed_map", "condition",
-    "embedding", "vertx2cat", "maskrcnn_mask", "__key__",
-    "img_hr", "condition_hr", "mask_hr"])
+    "embedding", "vertx2cat", "maskrcnn_mask", "__key__"])
+
 
 def hflip(container: Dict[str, torch.Tensor], flip_map=None) -> Dict[str, torch.Tensor]:
     container["img"] = F.hflip(container["img"])
@@ -44,7 +45,8 @@ def hflip(container: Dict[str, torch.Tensor], flip_map=None) -> Dict[str, torch.
     if "semantic_mask" in container:
         container["semantic_mask"] = F.hflip(container["semantic_mask"])
     if "vertices" in container:
-        symmetry_transform = get_symmetry_transform("https://dl.fbaipublicfiles.com/densepose/meshes/symmetry/symmetry_smpl_27554.pkl")
+        symmetry_transform = get_symmetry_transform(
+            "https://dl.fbaipublicfiles.com/densepose/meshes/symmetry/symmetry_smpl_27554.pkl")
         container["vertices"] = F.hflip(container["vertices"])
         symmetry_transform_ = symmetry_transform.to(container["vertices"].device)
         container["vertices"] = symmetry_transform_[container["vertices"].long()]
@@ -52,10 +54,4 @@ def hflip(container: Dict[str, torch.Tensor], flip_map=None) -> Dict[str, torch.
         container["E_mask"] = F.hflip(container["E_mask"])
     if "maskrcnn_mask" in container:
         container["maskrcnn_mask"] = F.hflip(container["maskrcnn_mask"])
-    if "img_hr" in container:
-        container["img_hr"] = F.hflip(container["img_hr"])
-    if "condition_hr" in container:
-        container["condition_hr"] = F.hflip(container["condition_hr"])
-    if "mask_hr" in container:
-        container["mask_hr"] = F.hflip(container["mask_hr"])
     return container

@@ -4,6 +4,7 @@ import sys
 from contextlib import redirect_stdout
 from torch_fidelity.sample_similarity_lpips import NetLinLayer, URL_VGG16_LPIPS, VGG16features, normalize_tensor, spatial_average
 
+
 class SampleSimilarityLPIPS(torch.nn.Module):
     SUPPORTED_DTYPES = {
         'uint8': torch.uint8,
@@ -55,10 +56,10 @@ class SampleSimilarityLPIPS(torch.nn.Module):
         res = [spatial_average(self.lins[kk].model(diffs[kk])) for kk in range(self.L)]
         val = sum(res)
         return val
-    
+
     def get_feats(self, x):
         assert x.dim() == 4 and x.shape[1] == 3, 'Input 0 is not Bx3xHxW'
-        if x.shape[-2] < 16 or x.shape[-1] < 16: # Resize images < 16x16
+        if x.shape[-2] < 16 or x.shape[-1] < 16:  # Resize images < 16x16
             f = 2
             size = tuple([int(f*_) for _ in x.shape[-2:]])
             x = torch.nn.functional.interpolate(x, size=size, mode="bilinear", align_corners=False)

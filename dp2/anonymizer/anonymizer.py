@@ -17,26 +17,17 @@ def load_generator_from_cfg_path(cfg_path: Union[str, Path]):
     return G
 
 
-def resize_batch(img, mask, maskrcnn_mask, condition, imsize, **kwargs):
-    img = F.resize(img, imsize, antialias=True)
-    mask = (F.resize(mask, imsize, antialias=True) > 0.99).float()
-    maskrcnn_mask = (F.resize(maskrcnn_mask, imsize, antialias=True) > 0.5).float()
-    
-    condition = img * mask
-    return dict(img=img, mask=mask, maskrcnn_mask=maskrcnn_mask, condition=condition)
-    
-
 class Anonymizer:
 
     def __init__(
             self,
             detector,
-            load_cache: bool,
+            load_cache: bool = False,
             person_G_cfg: Optional[Union[str, Path]] = None,
             cse_person_G_cfg: Optional[Union[str, Path]] = None,
             face_G_cfg: Optional[Union[str, Path]] = None,
             car_G_cfg: Optional[Union[str, Path]] = None,
-            ) -> None:
+    ) -> None:
         self.detector = detector
         self.generators = {k: None for k in [CSEPersonDetection, PersonDetection, FaceDetection, VehicleDetection]}
         self.load_cache = load_cache
@@ -52,20 +43,56 @@ class Anonymizer:
     def initialize_tracker(self, fps: float):
         self.tracker = MultiObjectTracker(dt=1/fps)
         self.track_to_z_idx = dict()
-        self.cur_z_idx = 0
+
+    def reset_tracker(self):
+        self.track_to_z_idx = dict()
+
+    def forward_G(self,
+                  G,
+                  batch,
+                  multi_modal_truncation: bool,
+                  amp: bool,
+                  z_idx: int,
+                  truncation_value: float,
+                  idx: int,
+                  all_styles=None):
+        batch["img"] = F.normalize(batch["img"].float(), [0.5*255, 0.5*255, 0.5*255], [0.5*255, 0.5*255, 0.5*255])
+        batch["img"] = batch["img"].float()
+        batch["condition"] = batch["mask"].float() * batch["img"]
+
+        with torch.cuda.amp.autocast(amp):
+            z = None
+            if z_idx is not None:
+                state = np.random.RandomState(seed=z_idx[idx])
+                z = state.normal(size=(1, G.z_channels)).astype(np.float32)
+                z = tops.to_cuda(torch.from_numpy(z))
+
+            if all_styles is not None:
+                anonymized_im = G(**batch, s=iter(all_styles[idx]))["img"]
+            elif multi_modal_truncation:
+                w_indices = None
+                if z_idx is not None:
+                    w_indices = [z_idx[idx] % len(G.style_net.w_centers)]
+                anonymized_im = G.multi_modal_truncate(
+                    **batch, truncation_value=truncation_value,
+                    w_indices=w_indices,
+                    z=z
+                )["img"]
+            else:
+                anonymized_im = G.sample(**batch, truncation_value=truncation_value, z=z)["img"]
+        anonymized_im = (anonymized_im+1).div(2).clamp(0, 1).mul(255)
+        return anonymized_im
 
     @torch.no_grad()
     def anonymize_detections(self,
-            im, detection, truncation_value: float,
-            multi_modal_truncation: bool, amp: bool, z_idx,
-            all_styles=None,
-            update_identity=None,
-            ):
+                             im, detection,
+                             update_identity=None,
+                             **synthesis_kwargs
+                             ):
         G = self.generators[type(detection)]
         if G is None:
             return im
         C, H, W = im.shape
-        orig_im = im.clone()
         if update_identity is None:
             update_identity = [True for i in range(len(detection))]
         for idx in range(len(detection)):
@@ -74,64 +101,43 @@ class Anonymizer:
             batch = detection.get_crop(idx, im)
             x0, y0, x1, y1 = batch.pop("boxes")[0]
             batch = {k: tops.to_cuda(v) for k, v in batch.items()}
-            batch["img"] = F.normalize(batch["img"].float(), [0.5*255, 0.5*255, 0.5*255], [0.5*255, 0.5*255, 0.5*255])
-            batch["img"] = batch["img"].float()
-            batch["condition"] = batch["mask"] * batch["img"]
-            orig_shape = None
-            if G.imsize and batch["img"].shape[-1] != G.imsize[-1] and batch["img"].shape[-2] != G.imsize[-2]:
-                orig_shape = batch["img"].shape[-2:]
-                batch = resize_batch(**batch, imsize=G.imsize)
-            with torch.cuda.amp.autocast(amp):
-                if all_styles is not None:
-                    anonymized_im = G(**batch, s=iter(all_styles[idx]))["img"]
-                elif multi_modal_truncation and hasattr(G, "multi_modal_truncate") and hasattr(G.style_net, "w_centers"):
-                    w_indices = None
-                    if z_idx is not None:
-                        w_indices = [z_idx[idx] % len(G.style_net.w_centers)]
-                    anonymized_im = G.multi_modal_truncate(
-                        **batch, truncation_value=truncation_value,
-                        w_indices=w_indices)["img"]
-                else:
-                    z = None
-                    if z_idx is not None:
-                        state = np.random.RandomState(seed=z_idx[idx])
-                        z = state.normal(size=(1, G.z_channels))
-                        z = tops.to_cuda(torch.from_numpy(z))
-                    anonymized_im = G.sample(**batch, truncation_value=truncation_value, z=z)["img"]
-            if orig_shape is not None:
-                anonymized_im = F.resize(anonymized_im, orig_shape, antialias=True)
-            anonymized_im = (anonymized_im+1).div(2).clamp(0, 1).mul(255).round().byte()
+            anonymized_im = self.forward_G(G, batch, **synthesis_kwargs, idx=idx)
 
-            # Resize and denormalize image
-            gim = F.resize(anonymized_im[0], (y1-y0, x1-x0), antialias=True)
+            gim = F.resize(anonymized_im[0], (y1-y0, x1-x0), interpolation=F.InterpolationMode.BICUBIC, antialias=True)
             mask = F.resize(batch["mask"][0], (y1-y0, x1-x0), interpolation=F.InterpolationMode.NEAREST).squeeze(0)
             # Remove padding
-            pad = [max(-x0,0), max(-y0,0)]
-            pad = [*pad, max(x1-W,0), max(y1-H,0)]
-            remove_pad = lambda x: x[...,pad[1]:x.shape[-2]-pad[3], pad[0]:x.shape[-1]-pad[2]]
+            pad = [max(-x0, 0), max(-y0, 0)]
+            pad = [*pad, max(x1-W, 0), max(y1-H, 0)]
+            def remove_pad(x): return x[..., pad[1]:x.shape[-2]-pad[3], pad[0]:x.shape[-1]-pad[2]]
+
             gim = remove_pad(gim)
-            mask = remove_pad(mask)
+            mask = remove_pad(mask) > 0.5
             x0, y0 = max(x0, 0), max(y0, 0)
             x1, y1 = min(x1, W), min(y1, H)
             mask = mask.logical_not()[None].repeat(3, 1, 1)
-            im[:, y0:y1, x0:x1][mask] = gim[mask]
 
+            im[:, y0:y1, x0:x1][mask] = gim[mask].round().clamp(0, 255).byte()
         return im
 
     def visualize_detection(self, im: torch.Tensor, cache_id: str = None) -> torch.Tensor:
         all_detections = self.detector.forward_and_cache(im, cache_id, load_cache=self.load_cache)
+        im = im.cpu()
         for det in all_detections:
             im = det.visualize(im)
         return im
 
     @torch.no_grad()
-    def forward(self, im: torch.Tensor, cache_id: str = None, track=True, **synthesis_kwargs) -> torch.Tensor:
+    def forward(self, im: torch.Tensor, cache_id: str = None, track=True, detections=None, **synthesis_kwargs) -> torch.Tensor:
         assert im.dtype == torch.uint8
         im = tops.to_cuda(im)
-        all_detections = self.detector.forward_and_cache(im, cache_id, load_cache=self.load_cache)
+        all_detections = detections
+        if detections is None:
+            if self.load_cache:
+                all_detections = self.detector.forward_and_cache(im, cache_id)
+            else:
+                all_detections = self.detector(im)
         if hasattr(self, "tracker") and track:
             [_.pre_process() for _ in all_detections]
-            import numpy as np 
             boxes = np.concatenate([_.boxes for _ in all_detections])
             boxes = [Detection(box) for box in boxes]
             self.tracker.step(boxes)
@@ -139,8 +145,7 @@ class Anonymizer:
             z_idx = []
             for track_id in track_ids:
                 if track_id not in self.track_to_z_idx:
-                    self.track_to_z_idx[track_id] = self.cur_z_idx
-                    self.cur_z_idx += 1
+                    self.track_to_z_idx[track_id] = np.random.randint(0, 2**32-1)
                 z_idx.append(self.track_to_z_idx[track_id])
             z_idx = np.array(z_idx)
             idx_offset = 0
@@ -156,4 +161,3 @@ class Anonymizer:
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
-

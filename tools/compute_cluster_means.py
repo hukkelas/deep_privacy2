@@ -15,7 +15,6 @@ from fast_pytorch_kmeans import KMeans
 @click.option("-n", "--n_samples", default=int(600e3), type=int)
 @click.option( "--n_centers", "--nc", default=512, type=int)
 @click.option( "--batch_size", default=512, type=int)
-#@torch.cuda.amp.autocast()
 def compute_cluster_means(config_path, n_samples, n_centers, batch_size):
     cfg = load_config(config_path)
     G = build_trained_generator(cfg, map_location=torch.device("cpu"))
@@ -36,9 +35,12 @@ def compute_cluster_means(config_path, n_samples, n_centers, batch_size):
         kmeans.fit_predict(w)
         centers = kmeans.centroids
 
+    if hasattr(style_net, "w_centers"):
+        del style_net.w_centers
+    style_net.register_buffer("w_centers", centers)
     ckpt_path = get_ckpt_paths(cfg.checkpoint_dir)[-1]
     ckpt = load_checkpoint(ckpt_path, map_location="cpu")
-    ckpt["w_centers"] = centers.cpu()
+    ckpt["EMA_generator"] = G.state_dict()
     torch.save(ckpt, ckpt_path)
 
 compute_cluster_means()

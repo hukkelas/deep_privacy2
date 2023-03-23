@@ -6,21 +6,7 @@ import functools
 from dp2.data.datasets.fdf import FDF256Dataset
 from dp2.data.build import get_dataloader
 from dp2.data.transforms.transforms import Normalize, Resize, ToFloat, CreateCondition, RandomHorizontalFlip
-from dp2.metrics.torch_metrics import compute_metrics_iteratively
-from dp2.metrics.fid_clip import compute_fid_clip
-from dp2.metrics.ppl import calculate_ppl
-from .utils import final_eval_fn
-
-
-def final_eval_fn(*args, **kwargs):
-    result = compute_metrics_iteratively(*args, **kwargs)
-    result2 = compute_fid_clip(*args, **kwargs)
-    assert all(key not in result for key in result2)
-    result.update(result2)
-    result3 = calculate_ppl(*args, **kwargs,)
-    assert all(key not in result for key in result3)
-    result.update(result3)
-    return result
+from .utils import final_eval_fn, train_eval_fn
 
 
 dataset_base_dir = os.environ["BASE_DATASET_DIR"] if "BASE_DATASET_DIR" in os.environ else "data"
@@ -64,6 +50,6 @@ data = dict(
         )
     ),
     # Training evaluation might do optimizations to reduce compute overhead. E.g. compute with AMP.
-    train_evaluation_fn=functools.partial(compute_metrics_iteratively, cache_directory=Path(metrics_cache, "fdf_val_train")),
+    train_evaluation_fn=functools.partial(train_eval_fn, cache_directory=Path(metrics_cache, "fdf_val_train")),
     evaluation_fn=functools.partial(final_eval_fn, cache_directory=Path(metrics_cache, "fdf_val"))
 )

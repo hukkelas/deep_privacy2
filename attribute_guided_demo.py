@@ -65,9 +65,13 @@ class GuidedDemo:
         det = self.anonymizer.detector.forward_and_cache(img, cache_id, load_cache=True)[0]
         current_styles = []
         for i in range(len(det)):
+            # Need to do forward pass to register all affine modules.
+            batch = det.get_crop(i, img)
+            batch["condition"] = batch["img"].float()
+
             s = get_styles(
                 np.random.randint(0, 999999),self.generator,
-            None, truncation_value=0)
+            batch, truncation_value=0)
             current_styles.append(s)
         update_identity = [True for i in range(len(det))]
         current_boxes = np.array(det.boxes)

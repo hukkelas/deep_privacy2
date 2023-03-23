@@ -1,17 +1,6 @@
-import torch 
+import torch
 import tops
-from torch.utils.data._utils.collate import default_collate
-
-
-def collate_fn(batch):
-    elem = batch[0]
-    ignore_keys = set(["embed_map", "vertx2cat"])
-    batch_ = {key: default_collate([d[key] for d in batch]) for key in elem if key not in ignore_keys}
-    if "embed_map" in elem:
-        batch_["embed_map"] = elem["embed_map"]
-    if "vertx2cat" in elem:
-        batch_["vertx2cat"] = elem["vertx2cat"]
-    return batch_
+from .utils import collate_fn
 
 
 def get_dataloader(
@@ -23,7 +12,7 @@ def get_dataloader(
         prefetch_factor: int,
         shuffle,
         channels_last=False
-        ):
+    ):
     sampler = None
     dl_kwargs = dict(
         pin_memory=True,

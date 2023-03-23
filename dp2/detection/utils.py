@@ -86,7 +86,7 @@ def find_best_matches(mask1: torch.Tensor, mask2: torch.Tensor, iou_threshold: f
 
 def combine_cse_maskrcnn_dets(segmentation: torch.Tensor, cse_dets: dict, iou_threshold: float):
     assert 0 < iou_threshold <= 1
-    matches = find_best_matches(segmentation, cse_dets["im_segmentation"], iou_threshold) 
+    matches = find_best_matches(segmentation, cse_dets["im_segmentation"], iou_threshold)
     H, W = segmentation.shape[1:]
     new_seg = torch.zeros((len(matches), H, W), dtype=torch.bool, device=segmentation.device)
     cse_im_seg = cse_dets["im_segmentation"]
@@ -136,34 +136,40 @@ def cut_pad_resize(x: torch.Tensor, bbox, target_shape, fdf_resize=False):
         x1 = min(x1, W)
         y1 = min(y1, H)
         new_x[:, y0_t:y1_t, x0_t:x1_t] = x[:, y0:y1, x0:x1]
+    # Nearest upsampling often generates more sharp synthesized identities.
+    interp = InterpolationMode.BICUBIC
+    if (y1-y0) < target_shape[0] and (x1-x0) < target_shape[1]:
+        interp = InterpolationMode.NEAREST
+    antialias = interp == InterpolationMode.BICUBIC
     if x1 - x0 == target_shape[1] and y1 - y0 == target_shape[0]:
         return new_x
     if x.dtype == torch.bool:
         new_x = resize(new_x.float(), target_shape, interpolation=InterpolationMode.NEAREST) > 0.5
     elif x.dtype == torch.float32:
-        new_x = resize(new_x, target_shape, interpolation=InterpolationMode.BILINEAR, antialias=True)
+        new_x = resize(new_x, target_shape, interpolation=interp, antialias=antialias)
     elif x.dtype == torch.uint8:
         if fdf_resize:  # FDF dataset is created with cv2 INTER_AREA.
             # Incorrect resizing generates noticeable poorer inpaintings.
-            upsampling = ((y1-y0) *(x1-x0)) < (target_shape[0] * target_shape[1])
+            upsampling = ((y1-y0) * (x1-x0)) < (target_shape[0] * target_shape[1])
             if upsampling:
-                new_x = resize(new_x.float(), target_shape, interpolation=InterpolationMode.BICUBIC, antialias=True).round().clamp(0, 255).byte()
+                new_x = resize(new_x.float(), target_shape, interpolation=InterpolationMode.BICUBIC,
+                               antialias=True).round().clamp(0, 255).byte()
             else:
                 device = new_x.device
                 new_x = new_x.permute(1, 2, 0).cpu().numpy()
                 new_x = cv2.resize(new_x, target_shape[::-1], interpolation=cv2.INTER_AREA)
                 new_x = torch.from_numpy(np.rollaxis(new_x, 2)).to(device)
         else:
-            new_x = resize(new_x.float(), target_shape, interpolation=InterpolationMode.BILINEAR, antialias=True).round().clamp(0, 255).byte()
+            new_x = resize(new_x.float(), target_shape, interpolation=interp,
+                           antialias=antialias).round().clamp(0, 255).byte()
     else:
         raise ValueError(f"Not supported dtype: {x.dtype}")
     return new_x
 
 
-
 def masks_to_boxes(segmentation: torch.Tensor):
     assert len(segmentation.shape) == 3
-    x = segmentation.any(dim=1).byte() # Compress rows
+    x = segmentation.any(dim=1).byte()  # Compress rows
     x0 = x.argmax(dim=1)
 
     x1 = segmentation.shape[2] - x.flip(dims=(1,)).argmax(dim=1)
@@ -171,4 +177,3 @@ def masks_to_boxes(segmentation: torch.Tensor):
     y0 = y.argmax(dim=1)
     y1 = segmentation.shape[1] - y.flip(dims=(1,)).argmax(dim=1)
     return torch.stack([x0, y0, x1, y1], dim=1)
-

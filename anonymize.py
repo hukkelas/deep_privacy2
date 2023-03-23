@@ -39,7 +39,7 @@ class ImageIndexTracker:
 
 
 def anonymize_video(
-        video_path, output_path,
+        video_path, output_path: Path,
         anonymizer, visualize: bool, max_res: int,
         start_time: int, fps: int,
         end_time: int,
@@ -76,10 +76,14 @@ def anonymize_video(
     video = video.fl_image(ImageIndexTracker(process_frame).fl_image)
     if str(output_path).endswith(".avi"):
         output_path = str(output_path).replace(".avi", ".mp4")
+    if not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True)
     video.write_videofile(str(output_path))
 
 
 def resize(frame: Image.Image, max_res):
+    if max_res is None:
+        return frame
     f = max(*[x/max_res for x in frame.size], 1)
     if f  == 1:
         return frame
@@ -148,11 +152,14 @@ def anonymize_webcam(
         anonymizer, max_res: int,
         synthesis_kwargs,
         visualize_detection,
+        track: bool, 
         **kwargs):
     import time
     cap = BufferlessVideoCapture(0, width=1920, height=1080)
     t = time.time()
     frames = 0
+    if track:
+        anonymizer.initialize_tracker(fps=5) # FPS used for tracking objects
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -179,17 +186,17 @@ def anonymize_webcam(
 
 @click.command()
 @click.argument("config_path", type=click.Path(exists=True))
-@click.option("-i", "--input_path", type=click.Path(exists=True, file_okay=True, dir_okay=True), help="Input path. Accepted inputs: images, videos, directories.")
+@click.option("-i", "--input_path", help="Input path. Accepted inputs: images, videos, directories.")
 @click.option("-o", "--output_path", default=None, type=click.Path(), help="Output path to save. Can be directory or file.")
-@click.option("--visualize", default=False, is_flag=True, help="Visualize the result")
-@click.option("--max-res", default=1920, type=int, help="Maximum resolution  of height/wideo")
+@click.option("-v","--visualize", default=False, is_flag=True, help="Visualize the result")
+@click.option("--max-res", default=None, type=int, help="Maximum resolution  of height/wideo")
 @click.option("--start-time", "--st", default=0, type=int, help="Start time (second) for vide anonymization")
 @click.option("--end-time", "--et", default=None, type=int, help="End time (second) for vide anonymization")
 @click.option("--fps", default=None, type=int, help="FPS for anonymization")
-@click.option("--detection-score-threshold", default=.3, type=click.FloatRange(0, 1), help="Detection threshold, threshold applied for all detection models.")
-@click.option("--visualize-detection", default=False, is_flag=True, help="Visualize only detections without running anonymization.")
+@click.option("--detection-score-threshold", "--dst", default=.3, type=click.FloatRange(0, 1), help="Detection threshold, threshold applied for all detection models.")
+@click.option("--visualize-detection", "--vd",default=False, is_flag=True, help="Visualize only detections without running anonymization.")
 @click.option("--multi-modal-truncation", "--mt", default=False, is_flag=True, help="Enable multi-modal truncation proposed by: https://arxiv.org/pdf/2202.12211.pdf")
-@click.option("--no-cache", default=True, is_flag=True, help="Disable loading of detection cache. Will rerun all detections.")
+@click.option("--cache", default=False, is_flag=True, help="Enable detection caching. Will save and load detections from cache.")
 @click.option("--amp", default=True, is_flag=True, help="Use automatic mixed precision for generator forward pass")
 @click.option("-t", "--truncation_value", default=0, type=click.FloatRange(0, 1), help="Latent interpolation truncation value.")
 @click.option("--track", default=False, is_flag=True, help="Track detections over frames. Will use the same latent variable (z) for tracked identities.")
@@ -203,7 +210,7 @@ def anonymize_path(
         output_path,
         detection_score_threshold: float,
         visualize_detection: bool,
-        no_cache: bool,
+        cache: bool,
         seed: int,
         person_generator: str,
         cse_person_generator: str,
@@ -221,10 +228,9 @@ def anonymize_path(
     cfg.detector.score_threshold = detection_score_threshold
     utils.print_config(cfg)
 
-    anonymizer = instantiate(cfg.anonymizer, load_cache=no_cache)
+    anonymizer = instantiate(cfg.anonymizer, load_cache=cache)
     synthesis_kwargs = ["amp", "multi_modal_truncation", "truncation_value"]
     synthesis_kwargs = {k: kwargs.pop(k) for k in synthesis_kwargs}
-
 
     kwargs["anonymizer"] = anonymizer
     kwargs["visualize_detection"] = visualize_detection

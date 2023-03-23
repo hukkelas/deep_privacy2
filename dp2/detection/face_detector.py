@@ -29,7 +29,7 @@ class FaceDetector(BaseDetector):
             score_threshold: float,
             face_post_process_cfg: dict,
             **kwargs
-            ) -> None:
+    ) -> None:
         super().__init__(**kwargs)
         self.face_detector = build_face_detector(**face_detector_cfg, confidence_threshold=score_threshold)
         self.face_mean = tops.to_cuda(torch.from_numpy(self.face_detector.mean).view(3, 1, 1))
@@ -42,7 +42,7 @@ class FaceDetector(BaseDetector):
         H, W = im.shape[1:]
         im = im.float() - self.face_mean
         im = self.face_detector.resize(im[None], 1.0)
-        boxes_XYXY = self.face_detector._batched_detect(im)[0][:, :-1] # Remove score
+        boxes_XYXY = self.face_detector._batched_detect(im)[0][:, :-1]  # Remove score
         boxes_XYXY[:, [0, 2]] *= W
         boxes_XYXY[:, [1, 3]] *= H
         return boxes_XYXY.round().long().cpu()

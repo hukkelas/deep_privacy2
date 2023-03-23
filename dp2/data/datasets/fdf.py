@@ -9,7 +9,7 @@ try:
 except ImportError:
     PYSPNG_IMPORTED = False
     print("Could not load pyspng. Defaulting to pillow image backend.")
-    from  PIL import Image
+    from PIL import Image
 from tops import logger
 
 
@@ -126,4 +126,3 @@ class FDF256Dataset:
         if self.transform is None:
             return batch
         return self.transform(batch)
-

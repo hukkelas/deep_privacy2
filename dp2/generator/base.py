@@ -4,7 +4,6 @@ import tqdm
 import tops
 from ..layers import Module
 from ..layers.sg2_layers import FullyConnectedLayer
-from dp2 import utils
 
 
 class BaseGenerator(Module):
@@ -31,7 +30,7 @@ class BaseGenerator(Module):
             dtype = x.dtype
             device = x.device
         if device is None:
-            device = utils.get_device()
+            device = tops.get_device()
         if truncation_value == 0:
             return torch.zeros((batch_size, self.z_channels), device=device, dtype=dtype)
         z = torch.randn((batch_size, self.z_channels), device=device, dtype=dtype)
@@ -56,15 +55,14 @@ class BaseGenerator(Module):
         return self.forward(**kwargs, z=z)
 
 
-
 class SG2StyleNet(torch.nn.Module):
     def __init__(self,
-        z_dim,                      # Input latent (Z) dimensionality.
-        w_dim,                      # Intermediate latent (W) dimensionality.
-        num_layers      = 2,        # Number of mapping layers.
-        lr_multiplier   = 0.01,     # Learning rate multiplier for the mapping layers.
-        w_avg_beta      = 0.998,    # Decay for tracking the moving average of W during training.
-        ):
+                 z_dim,                      # Input latent (Z) dimensionality.
+                 w_dim,                      # Intermediate latent (W) dimensionality.
+                 num_layers=2,        # Number of mapping layers.
+                 lr_multiplier=0.01,     # Learning rate multiplier for the mapping layers.
+                 w_avg_beta=0.998,    # Decay for tracking the moving average of W during training.
+                 ):
         super().__init__()
         self.z_dim = z_dim
         self.w_dim = w_dim
@@ -77,7 +75,7 @@ class SG2StyleNet(torch.nn.Module):
             setattr(self, f'fc{idx}', layer)
         self.register_buffer('w_avg', torch.zeros([w_dim]))
 
-    def forward(self, z, update_emas=False, y=None):
+    def forward(self, z, update_emas=False, **kwargs):
         tops.assert_shape(z, [None, self.z_dim])
 
         # Embed, normalize, and concatenate inputs.
@@ -105,6 +103,25 @@ class SG2StyleNet(torch.nn.Module):
             z = torch.randn((batch_size, self.z_dim), device=tops.get_device())
             self(z, update_emas=True)
 
+    def get_truncated(self, truncation_value, condition, z=None, **kwargs):
+        if z is None:
+            z = torch.randn((condition.shape[0], self.z_dim), device=tops.get_device())
+        w = self(z)
+        truncation_value = max(0, truncation_value)
+        truncation_value = min(truncation_value, 1)
+        return self.w_avg.to(w.dtype).lerp(w, truncation_value)
+
+    def multi_modal_truncate(self, truncation_value, condition, w_indices, z=None, **kwargs):
+        truncation_value = max(0, truncation_value)
+        truncation_value = min(truncation_value, 1)
+        if z is None:
+            z = torch.randn((condition.shape[0], self.z_dim), device=tops.get_device())
+        w = self(z)
+        if w_indices is None:
+            w_indices = np.random.randint(0, len(self.w_centers), size=(len(w)))
+        w_centers = self.w_centers[w_indices].to(w.device)
+        w = w_centers.to(w.dtype).lerp(w, truncation_value)
+        return w
 
 class BaseStyleGAN(BaseGenerator):
 
@@ -120,25 +137,13 @@ class BaseStyleGAN(BaseGenerator):
     def sample(self, truncation_value, **kwargs):
         if truncation_value is None:
             return self.forward(**kwargs)
-        truncation_value = max(0, truncation_value)
-        truncation_value = min(truncation_value, 1)
-        w = self.get_w(self.get_z(kwargs["condition"]), False)
-        w = self.style_net.w_avg.to(w.dtype).lerp(w, truncation_value)
+        w = self.style_net.get_truncated(truncation_value, **kwargs)
         return self.forward(**kwargs, w=w)
 
     def update_w(self, *args, **kwargs):
         self.style_net.update_w(*args, **kwargs)
-    
 
     @torch.no_grad()
     def multi_modal_truncate(self, truncation_value, w_indices=None, **kwargs):
-        if truncation_value is None:
-            return self.forward(**kwargs)
-        truncation_value = max(0, truncation_value)
-        truncation_value = min(truncation_value, 1)
-        w = self.get_w(self.get_z(kwargs["condition"]), False)
-        if w_indices is None:
-            w_indices = np.random.randint(0, len(self.style_net.w_centers), size=(len(w)))
-        w_centers = self.style_net.w_centers[w_indices].to(w.device)
-        w = w_centers.to(w.dtype).lerp(w, truncation_value)
+        w = self.style_net.multi_modal_truncate(truncation_value, w_indices=w_indices, **kwargs)
         return self.forward(**kwargs, w=w)

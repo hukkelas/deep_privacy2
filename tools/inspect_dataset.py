@@ -11,9 +11,6 @@ from PIL import Image
 def get_image(batch, cfg, fscale_vis):
     im0 = batch["condition"]
     im1 = batch["img"]
-    for key, item in batch.items():
-        item = item.float()
-        print(key, ":", "max:", item.max().item(), "min:", item.min().item(), "mean:", item.mean().item(), "shape:", item.shape)
     im = utils.denormalize_img(torch.cat((im0, im1), dim=-1)).mul(255).byte()
     im = torch.cat((im, vis_utils.visualize_batch(**batch)), dim=-1)
 

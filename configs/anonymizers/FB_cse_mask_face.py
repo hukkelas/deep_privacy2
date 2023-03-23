@@ -6,7 +6,7 @@ from tops.config import LazyCall as L
 detector = L(CSeMaskFaceDetector)(
     mask_rcnn_cfg=dict(),
     face_detector_cfg=dict(),
-    face_post_process_cfg=dict(target_imsize=(256, 256)),
+    face_post_process_cfg=dict(target_imsize=(256, 256), fdf128_expand=False),
     cse_cfg=dict(),
     cse_post_process_cfg=dict(
         target_imsize=(288, 160),

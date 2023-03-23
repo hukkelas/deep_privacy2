@@ -18,16 +18,14 @@ This repository improves over the original [DeepPrivacy](https://github.com/hukk
 - **Code cleanup and general improvements:** Extensive refactoring, bugfixes, and improvements yielding improved results and faster training.
 
 ## Installation
-
-**Requirements**
-
+### Requirements
 - Pytorch >= 1.10
 - Torchvision >= 0.12
 - Python >= 3.8
 - CUDA capable device for training. Training was done with 1-8 32GB V100 GPUs.
 
 
-**Installation**
+### Installation
 We recommend to setup and install pytorch with [anaconda](https://www.anaconda.com/) following the [pytorch installation instructions](https://pytorch.org/get-started/locally/).
 
 1. Clone repository: `git clone https://github.com/hukkelas/deep_privacy2/`.
@@ -39,6 +37,20 @@ or:
 ```
 pip install git+https://github.com/hukkelas/deep_privacy2/
 ```
+
+### Installation with Docker
+
+1. Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker) to support GPU acceleration.
+2. Build the docker image using the [Dockerfile](Dockerfile).
+```bash
+# If you're not planning to train the network (or not use wandb logging), you can remove the WANDB_API_KEY argument.
+docker build -t deep_privacy2 --build-arg WANDB_API_KEY=YOUR_WANDB_KEY  --build-arg UID=$(id -u) --build-arg UNAME=$(id -un) .
+```
+3. Run the docker image with selected command:
+```
+docker run --runtime=nvidia --gpus '"device=0"' --name deep_privacy2 --ipc=host -u $(id -u) -v $PWD:/workspace  -v /mnt/work2:/mnt/work2 -it deep_privacy2
+```
+
 
 ## Anonymization
 [anonymize.py](anonymize.py) is the main script for anonymization.
@@ -192,4 +204,4 @@ This repsitory is released under [Apache 2.0 License](License), except for the f
 - Code under `sg3_torch_utils/`. This code is modified from [github.com/NVlabs/stylegan2-ada-pytorch](https://github.com/NVlabs/stylegan2-ada-pytorch). Separate license is attached in the directory.
 - Detection network: See [Detectron2 License](https://github.com/facebookresearch/detectron2/blob/main/LICENSE).
 - All checkpoints follow the license of the datasets. See the respective datasets for more information.
-
+- Code under `dp2/detection/models/vit_pose`. This code is modified from [https://github.com/gpastal24/ViTPose-Pytorch](https://github.com/gpastal24/ViTPose-Pytorch), where code is adapted from OpenMMLab. Original license is [Apache 2-0](https://github.com/open-mmlab/mmpose/blob/master/LICENSE).

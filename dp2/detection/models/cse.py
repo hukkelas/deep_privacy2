@@ -47,7 +47,7 @@ class CSEDetector:
                 "https://raw.githubusercontent.com/facebookresearch/detectron2/main/projects/DensePose/configs/cse/Base-DensePose-RCNN-FPN-Human.yaml"],
             score_thres: float = 0.9,
             nms_thresh: float = None,
-            ) -> None:
+    ) -> None:
         with tops.logger.capture_log_stdout():
             cfg = get_cfg()
             self.device = tops.get_device()
@@ -113,7 +113,7 @@ class CSEDetector:
             )
         pred_densepose, boxes_xywh, classes = self.densepose_extractor(output)
         assert isinstance(pred_densepose, DensePoseEmbeddingPredictorOutput), pred_densepose
-        S = pred_densepose.coarse_segm.argmax(dim=1) # Segmentation channel Nx2xHxW (2 because only 2 classes)
+        S = pred_densepose.coarse_segm.argmax(dim=1)  # Segmentation channel Nx2xHxW (2 because only 2 classes)
         E = pred_densepose.embedding
         mesh_name = self.class_to_mesh_name[classes[0]]
         assert mesh_name == "smpl_27554"
@@ -132,4 +132,3 @@ class CSEDetector:
             bbox_XYXY=boxes_XYXY,
             im_segmentation=im_segmentation,
             scores=scores.view(-1))
-

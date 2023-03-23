@@ -32,7 +32,10 @@ def validate(
         cfg.train.batch_size = batch_size // world_size
     dl_val = instantiate(cfg.data.val.loader)
     G = build_trained_generator(cfg)
+    tops.set_seed(0)
+    tops.set_AMP(False)
     metrics = instantiate(cfg.data.evaluation_fn)(generator=G, dataloader=dl_val, truncation_value=truncation_value)
+    metrics = {f"metrics_final/{k}": v for k,v in metrics.items()}
     if rank == 0:
         tops.init(cfg.output_dir)
         logger.add_dict(metrics)

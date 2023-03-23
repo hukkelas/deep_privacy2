@@ -4,6 +4,7 @@ import tops
 from tops import logger
 from .torch_utils import set_requires_grad
 
+
 class EMA:
     """
     Expoenential moving average.
@@ -17,7 +18,7 @@ class EMA:
             generator: torch.nn.Module,
             batch_size: int,
             rampup: float,
-            ):
+    ):
         self.rampup = rampup
         self._nimg_half_time = batch_size * 10 / 32 * 1000
         self._batch_size = batch_size
@@ -74,6 +75,6 @@ class EMA:
     @property
     def module(self):
         return self.generator.module
-    
+
     def sample(self, *args, **kwargs):
         return self.generator.sample(*args, **kwargs)

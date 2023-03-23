@@ -3,7 +3,7 @@ from pathlib import Path
 from tops.config import LazyCall as L
 import torch
 import functools
-from dp2.data.datasets import CocoCSE
+from dp2.data.datasets.coco_cse import CocoCSE
 from dp2.data.build import get_dataloader
 from dp2.data.transforms.transforms import CreateEmbedding, Normalize, Resize, ToFloat, CreateCondition, RandomHorizontalFlip
 from dp2.data.transforms.stylegan2_transform import StyleGANAugmentPipe

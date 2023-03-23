@@ -38,5 +38,8 @@ setup(
         "scipy==1.7.1",
         "webdataset==0.2.26",
         "scikit-image"
+        "timm==0.6.7",
+        "clip@git+https://github.com/openai/CLIP.git@b46f5ac7587d2e1862f8b7b1573179d80dcdd620",
+
     ],
 )

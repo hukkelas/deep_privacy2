@@ -80,7 +80,6 @@ def forward_D_fake(batch, fake_img, discriminator, **kwargs):
     return discriminator(**fake_batch, **kwargs)
 
 
-
 def remove_pad(x: torch.Tensor, bbox_XYXY, imshape):
     """
     Remove padding that is shown as negative 
@@ -109,3 +108,33 @@ def crop_box(x: torch.Tensor, bbox_XYXY) -> torch.Tensor:
     x1 = min(x1, x.shape[-1])
     y1 = min(y1, x.shape[-2])
     return x[..., y0:y1, x0:x1]
+
+
+def torch_wasserstein_loss(tensor_a, tensor_b):
+    # Compute the first Wasserstein distance between two 1D distributions.
+    return (torch_cdf_loss(tensor_a, tensor_b, p=1))
+
+
+def torch_cdf_loss(tensor_a, tensor_b, p=1):
+    # last-dimension is weight distribution
+    # p is the norm of the distance, p=1 --> First Wasserstein Distance
+    # to get a positive weight with our normalized distribution
+    # we recommend combining this loss with other difference-based losses like L1
+
+    # normalize distribution, add 1e-14 to divisor to avoid 0/0
+    tensor_a = tensor_a / (torch.sum(tensor_a, dim=-1, keepdim=True) + 1e-14)
+    tensor_b = tensor_b / (torch.sum(tensor_b, dim=-1, keepdim=True) + 1e-14)
+    # make cdf with cumsum
+    cdf_tensor_a = torch.cumsum(tensor_a, dim=-1)
+    cdf_tensor_b = torch.cumsum(tensor_b, dim=-1)
+
+    # choose different formulas for different norm situations
+    if p == 1:
+        cdf_distance = torch.sum(torch.abs((cdf_tensor_a-cdf_tensor_b)), dim=-1)
+    elif p == 2:
+        cdf_distance = torch.sqrt(torch.sum(torch.pow((cdf_tensor_a-cdf_tensor_b), 2), dim=-1))
+    else:
+        cdf_distance = torch.pow(torch.sum(torch.pow(torch.abs(cdf_tensor_a-cdf_tensor_b), p), dim=-1), 1/p)
+
+    cdf_loss = cdf_distance.mean()
+    return cdf_loss

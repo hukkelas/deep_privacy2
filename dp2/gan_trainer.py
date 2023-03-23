@@ -72,7 +72,7 @@ class AverageMeter():
                 self.to_log[key] += value.mean().detach()
             else:
                 self.to_log[key] = value.mean().detach()
-    
+
     def get_average(self):
         return {key: value / self.n[key] for key, value in self.to_log.items()}
 
@@ -80,7 +80,7 @@ class AverageMeter():
 class GANTrainer:
 
     def __init__(
-            self, 
+            self,
             G: torch.nn.Module,
             D: torch.nn.Module,
             G_EMA: torch.nn.Module,
@@ -125,7 +125,7 @@ class GANTrainer:
             next_val_step=ims_per_val,
             total_time=0
         )
-        
+
         checkpointer.register_models(dict(
             generator=G, discriminator=D, EMA_generator=G_EMA,
             D_optimizer=D_optim,
@@ -194,7 +194,7 @@ class GANTrainer:
         n_ims = int(100e3)
         n_steps = int(n_ims / (self.batch_size * tops.world_size()))
         n_ims = n_steps * self.batch_size * tops.world_size()
-        for i in range(10): # Warmup
+        for i in range(10):  # Warmup
             self.G_EMA.update_beta()
             self.step_D(batch)
             self.step_G(batch)
@@ -218,7 +218,7 @@ class GANTrainer:
             "stats/ims_per_day": ims_per_day,
             "stats/ims_per_4_day": ims_per_4_day
         })
-            
+
     def log_time(self):
         if not hasattr(self, "start_time"):
             self.start_time = time.time()
@@ -229,7 +229,7 @@ class GANTrainer:
             return
         n_secs = time.time() - self.start_time
         n_ims_per_sec = n_images / n_secs
-        training_time_hours = n_secs / 60/ 60
+        training_time_hours = n_secs / 60 / 60
         self.train_state.total_time += training_time_hours
         remaining_images = self.max_images_to_train - logger.global_step()
         remaining_time = remaining_images / n_ims_per_sec / 60 / 60
@@ -260,7 +260,7 @@ class GANTrainer:
         ims_diverse = 3
         batch = next(dl_val)
         to_vis = []
-        
+
         for i in range(ims_diverse):
             z = self.G.get_z(batch["img"])[:1].repeat(batch["img"].shape[0], 1)
             fakes = utils.denormalize_img(self.G_EMA(**batch, z=z)["img"]).mul(255).byte()[:ims_to_log].cpu()
@@ -286,7 +286,7 @@ class GANTrainer:
             check_ddp_consistency(self.G)
             check_ddp_consistency(self.D)
         metrics = self.evaluate_fn(generator=self.G_EMA, dataloader=self.dl_val)
-        metrics = {f"metrics/{k}": v for k,v in metrics.items()}
+        metrics = {f"metrics/{k}": v for k, v in metrics.items()}
         logger.add_dict(metrics, level=logger.logger.INFO)
 
     def step_D(self, batch):

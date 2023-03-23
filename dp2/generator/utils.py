@@ -22,6 +22,7 @@ def spatial_embed_keypoints(keypoints: torch.Tensor, x):
     keypoint_spatial = keypoint_spatial[:, 1:].view(-1, N_K, H, W)
     return keypoint_spatial
 
+
 class MaskOutput(torch.autograd.Function):
 
     @staticmethod

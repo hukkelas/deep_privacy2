@@ -4,18 +4,19 @@ Original source code:
 https://github.com/autonomousvision/stylegan_xl/blob/f9be58e98110bd946fcdadef2aac8345466faaf3/run_stylemc.py#
 Modified by Håkon Hukkelås
 """
-
+import click
 from pathlib import Path
 import tqdm
 from dp2 import utils
 import tops
 from timeit import default_timer as timer
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torchvision.transforms.functional import resize, normalize
 import clip
 from dp2.gan_trainer import AverageMeter
+from tops.config import instantiate
+from dp2.utils import vis_utils
 
 
 def spherical_dist_loss(x, y):
@@ -31,32 +32,41 @@ def prompts_dist_loss(x, targets):
     distances = [loss(x, target) for target in targets]
     return torch.stack(distances, dim=-1).sum(dim=-1)
 
+affine_modules = None
+max_ch = None
+
+@torch.no_grad()
+def init_affine_modules(G, batch):
+    global affine_modules, max_ch
+    affine_modules = []
+    max_ch = 0
+    def forward_hook(block, input_ ,output_):
+        global max_ch
+        affine_modules.append(block)
+        max_ch = max(max_ch, block.affine.out_features*(1+hasattr(block, "affine_beta")))
+    removable_handles = []
+    for block in G.modules():
+        if hasattr(block, "affine") and hasattr(block.affine, "weight"):
+            removable_handles.append(block.register_forward_hook(forward_hook))
+    G(**batch)
+    for hook in removable_handles:
+        hook.remove()
 
 @torch.no_grad()
 def get_styles(seed, G: torch.nn.Module, batch, truncation_value=1):
-    all_styles = []
-    if seed is None:
-        z = np.random.normal(0, 0, size=(1, G.z_channels))
-    else:
-        z = np.random.RandomState(seed=seed).normal(0, 1, size=(1, G.z_channels))
-        z_idx = np.random.RandomState(seed=seed).randint(0, len(G.style_net.w_centers))
-    w_c = G.style_net.w_centers[z_idx].to(tops.get_device()).view(1, -1)
-    w = G.style_net(torch.from_numpy(z).to(tops.get_device()))
+    global affine_modules, max_ch
+    if affine_modules is None:
+        init_affine_modules(G, batch)
+    w = G.style_net.get_truncated(truncation_value, **batch, seed=seed)
 
-    w = w_c.to(w.dtype).lerp(w, truncation_value)
-    if hasattr(G, "get_comod_y"):
-        w = G.get_comod_y(batch, w)
-    for block in G.modules():
-        if not hasattr(block, "affine") or not hasattr(block.affine, "weight"):
-            continue
+    all_styles = torch.zeros((len(affine_modules), max_ch), device=batch["img"].device, dtype=torch.float32)
+    for i, block in enumerate(affine_modules):
         gamma0 = block.affine(w)
         if hasattr(block, "affine_beta"):
             beta0 = block.affine_beta(w)
             gamma0 = torch.cat((gamma0, beta0), dim=1)
-        all_styles.append(gamma0)
-    max_ch = max([s.shape[-1] for s in all_styles])
-    all_styles = [F.pad(s, ((0, max_ch - s.shape[-1])), "constant", 0) for s in all_styles]
-    all_styles = torch.cat(all_styles)
+        all_styles[i] = F.pad(gamma0, ((0, max_ch - gamma0.shape[-1])), "constant", 0) 
+
     return all_styles
 
 
@@ -76,7 +86,7 @@ def get_and_cache_direction(output_dir: Path, dl_val, G, text_prompt):
 def find_direction(
     G,
     text_prompt,
-    n_iterations=128*8,
+    n_iterations=128*8*10,
     batch_size=8,
     dl_val=None
 ):
@@ -85,7 +95,7 @@ def find_direction(
     target = [clip_model.encode_text(clip.tokenize(text_prompt).to(tops.get_device())).float()]
     first_batch = next(dl_val)
     first_batch["embedding"] = None if "embedding" not in first_batch else first_batch["embedding"]
-    s = get_styles(0, G, first_batch)
+    s = get_styles(0, G, first_batch, 0)
     # stats tracker
     tracker = AverageMeter()
     n_iterations = n_iterations // batch_size
@@ -107,7 +117,7 @@ def find_direction(
             batch["embedding"] = None if "embedding" not in batch else batch["embedding"]
         styles = get_styles(seed_idx, G, batch) + direction
         img = G(**batch, s=iter(styles))["img"]
-        batch = {k: v.cpu() if v is not None else v for k, v in batch.items()}
+
         # clip loss
         img = (img + 1)/2
         img = normalize(img, mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
@@ -130,3 +140,41 @@ def find_direction(
     print(direction)
     print(f"Time for direction search: {timer() - time_start:.2f} s")
     return direction
+
+
+@click.command()
+@click.argument("config_path")
+@click.argument("text_prompt")
+@click.option("-n", default=50, type=int)
+def main(config_path: str, text_prompt: str, n: int):
+    from dp2.infer import build_trained_generator
+    from PIL import Image
+    cfg = utils.load_config(config_path)
+    G = build_trained_generator(cfg)
+    cfg.train.batch_size = 1
+    dl_val = instantiate(cfg.data.val.loader)
+    direction = get_and_cache_direction(cfg.output_dir, dl_val, G, text_prompt)
+    output_dir = Path("stylemc_results")
+    output_dir.mkdir(exist_ok=True, parents=True)
+    save = lambda x, path: Image.fromarray(utils.im2numpy(x, True, True)[0]).save(path)
+    strenghts = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 1.0]
+    for i, batch in enumerate(iter(dl_val)):
+        imgs = []
+        
+        img = vis_utils.visualize_batch(**batch)
+        img = tops.im2numpy(img, False)[0]
+        imgs.append(img)
+        if i > n:
+            break
+        for strength in strenghts:
+            styles = get_styles(i, G, batch, truncation_value=0) + direction*strength
+            img = G(**batch, s=iter(styles))["img"]
+            imgs.append(utils.im2numpy(img, True, True)[0])
+        
+        img = tops.np_make_image_grid(imgs, nrow=1)
+        Image.fromarray(img).save(output_dir.joinpath(f"results_{i}.png"))
+
+
+if __name__ == "__main__":
+    main()
+    

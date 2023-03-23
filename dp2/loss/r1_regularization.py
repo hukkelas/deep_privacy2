@@ -1,13 +1,14 @@
 import torch
 import tops
 
+
 def r1_regularization(
         real_img, real_score, mask, lambd: float, lazy_reg_interval: int,
         lazy_regularization: bool,
         scaler: torch.cuda.amp.GradScaler, mask_out: bool,
         mask_out_scale: bool,
         **kwargs
-        ):
+):
     grad = torch.autograd.grad(
         outputs=scaler.scale(real_score),
         inputs=real_img,

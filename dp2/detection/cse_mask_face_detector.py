@@ -35,7 +35,7 @@ class CSeMaskFaceDetector(BaseDetector):
             cse_post_process_cfg,
             score_threshold: float,
             **kwargs
-            ) -> None:
+    ) -> None:
         super().__init__(**kwargs)
         self.mask_rcnn = MaskRCNNDetector(**mask_rcnn_cfg, score_thres=score_threshold)
         if "confidence_threshold" not in face_detector_cfg:
@@ -56,7 +56,7 @@ class CSeMaskFaceDetector(BaseDetector):
         H, W = im.shape[1:]
         im = im.float() - self.face_mean
         im = self.face_detector.resize(im[None], 1.0)
-        boxes_XYXY = self.face_detector._batched_detect(im)[0][:, :-1] # Remove score
+        boxes_XYXY = self.face_detector._batched_detect(im)[0][:, :-1]  # Remove score
         boxes_XYXY[:, [0, 2]] *= W
         boxes_XYXY[:, [1, 3]] *= H
         return boxes_XYXY.round().long()
@@ -94,7 +94,7 @@ class CSeMaskFaceDetector(BaseDetector):
 
         persons_with_cse = CSEPersonDetection(
             combined_segmentation, cse_dets, **self.cse_post_process_cfg,
-            embed_map=embed_map,orig_imshape_CHW=im.shape
+            embed_map=embed_map, orig_imshape_CHW=im.shape
         )
         persons_with_cse.pre_process()
         not_matched = [i for i in range(maskrcnn_person["segmentation"].shape[0]) if i not in matches[:, 0]]

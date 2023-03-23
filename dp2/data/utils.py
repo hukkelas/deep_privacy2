@@ -16,25 +16,45 @@ except ImportError:
     from PIL import Image
 
 
+def get_fdf_keypoints():
+    return get_coco_keypoints()[:7]
+
+
+def get_fdf_flipmap():
+    keypoints = get_fdf_keypoints()
+    keypoint_flip_map = {
+        "left_eye": "right_eye",
+        "left_ear": "right_ear",
+        "left_shoulder": "right_shoulder",
+    }
+    for key, value in list(keypoint_flip_map.items()):
+        keypoint_flip_map[value] = key
+    keypoint_flip_map["nose"] = "nose"
+    keypoint_flip_map_idx = []
+    for source in keypoints:
+        keypoint_flip_map_idx.append(keypoints.index(keypoint_flip_map[source]))
+    return keypoint_flip_map_idx
+
+
 def get_coco_keypoints():
     return [
         "nose",
         "left_eye",
-        "right_eye",
+        "right_eye",  # 2
         "left_ear",
-        "right_ear",
+        "right_ear",  # 4
         "left_shoulder",
-        "right_shoulder",
+        "right_shoulder",  # 6
         "left_elbow",
-        "right_elbow",
+        "right_elbow",  # 8
         "left_wrist",
-        "right_wrist",
+        "right_wrist",  # 10
         "left_hip",
-        "right_hip",
+        "right_hip",  # 12
         "left_knee",
-        "right_knee",
+        "right_knee",  # 14
         "left_ankle",
-        "right_ankle",
+        "right_ankle",  # 16
     ]
 
 

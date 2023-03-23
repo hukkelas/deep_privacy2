@@ -12,17 +12,20 @@ from torch_fidelity.utils import create_feature_extractor
 lpips_model = None
 fid_model = None
 
+
 @torch.no_grad()
 def mse(images1: torch.Tensor, images2: torch.Tensor) -> torch.Tensor:
     se = (images1 - images2) ** 2
     se = se.view(images1.shape[0], -1).mean(dim=1)
     return se
 
+
 @torch.no_grad()
 def psnr(images1: torch.Tensor, images2: torch.Tensor) -> torch.Tensor:
     mse_ = mse(images1, images2)
     psnr = 10 * torch.log10(1 / mse_)
     return psnr
+
 
 @torch.no_grad()
 def lpips(images1: torch.Tensor, images2: torch.Tensor) -> torch.Tensor:
@@ -33,7 +36,7 @@ def _lpips_w_grad(images1: torch.Tensor, images2: torch.Tensor) -> torch.Tensor:
     global lpips_model
     if lpips_model is None:
         lpips_model = tops.to_cuda(SampleSimilarityLPIPS())
-    
+
     images1 = images1.mul(255)
     images2 = images2.mul(255)
     with torch.cuda.amp.autocast(tops.AMP()):
@@ -41,15 +44,13 @@ def _lpips_w_grad(images1: torch.Tensor, images2: torch.Tensor) -> torch.Tensor:
     return dists
 
 
-
-
 @torch.no_grad()
 def compute_metrics_iteratively(
         dataloader, generator,
         cache_directory,
         data_len=None,
-        truncation_value: float=None,
-        ) -> dict:
+        truncation_value: float = None,
+) -> dict:
     """
     Args:
         n_samples (int): Creates N samples from same image to calculate stats
@@ -114,7 +115,7 @@ def compute_metrics_iteratively(
         fid_stat_fake = fid_features_to_statistics(fid_features_fake)
         fid_ = fid_statistics_to_metric(fid_stat_real, fid_stat_fake, verbose=False)["frechet_inception_distance"]
     tops.all_reduce(n_samples_seen, torch.distributed.ReduceOp.SUM)
-    tops.all_reduce(lpips_total, torch.distributed.ReduceOp.SUM) 
+    tops.all_reduce(lpips_total, torch.distributed.ReduceOp.SUM)
     tops.all_reduce(diversity_total, torch.distributed.ReduceOp.SUM)
     lpips_total = lpips_total / n_samples_seen
     diversity_total = diversity_total / n_samples_seen
@@ -130,9 +131,9 @@ def compute_metrics_iteratively(
 @torch.no_grad()
 def compute_lpips(
         dataloader, generator,
-        truncation_value: float=None,
+        truncation_value: float = None,
         data_len=None,
-        ) -> dict:
+    ) -> dict:
     """
     Args:
         n_samples (int): Creates N samples from same image to calculate stats
@@ -166,7 +167,7 @@ def compute_lpips(
             lpips_total += lpips_1.sum().add(lpips_2.sum()).div(2)
             diversity_total += lpips_model.lpips_from_feats(fake1_lpips_feats, fake2_lpips_feats).sum()
     tops.all_reduce(n_samples_seen, torch.distributed.ReduceOp.SUM)
-    tops.all_reduce(lpips_total, torch.distributed.ReduceOp.SUM) 
+    tops.all_reduce(lpips_total, torch.distributed.ReduceOp.SUM)
     tops.all_reduce(diversity_total, torch.distributed.ReduceOp.SUM)
     lpips_total = lpips_total / n_samples_seen
     diversity_total = diversity_total / n_samples_seen
