@@ -1,5 +1,7 @@
 # DeepPrivacy2 - A Toolbox for Realistic Image Anonymization
-
+[[PDF]](http://arxiv.org/abs/2211.09454) [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/haakohu/deep_privacy2)
+[[Video Demo]](https://youtu.be/Kt3au719hhk)
+[[WACV 2023 Presentation]](https://youtu.be/wwKRkkzxKuM)
 
 ![](media/g7_leaders.jpg)
 DeepPrivacy2 is a toolbox for realistic anonymization of humans, including a face and a full-body anonymizer.
@@ -106,14 +108,14 @@ Options:
 
 **Singe image anonymization**
 ```
-python3 anonymize.py configs/anonymizers/FB_cse.py -i path_to_image.png --output-path output.png
+python3 anonymize.py configs/anonymizers/FB_cse.py -i path_to_image.png --output_path output.png
 ```
 
 **Folder anonymization**
 
 If a folder is given as the input, all image and video files in the given folder will be anonymized and placed under --output_path. The script will duplicate the directory structure/filenames in the given folder for the output.
 ```
-python3 anonymize.py configs/anonymizers/FB_cse.py path/to/input/folder --save --output_path output_folder
+python3 anonymize.py configs/anonymizers/FB_cse.py -i path/to/input/folder --output_path output_folder
 ```
 
 **Video anonymization**
@@ -192,10 +194,10 @@ The default dataset directory is ./data. If you want to change the dataset direc
 
 
 ### FDF256
-Follow the instructions [here](github.com/hukkelas/FDF/FDF256.md)to download the FDF256 dataset. The dataset should be placed in the directory: `data/fdf256`.
+Follow the instructions [here](https://github.com/hukkelas/FDF/blob/master/FDF256.md) to download the FDF256 dataset. The dataset should be placed in the directory: `data/fdf256`.
 
 ### FDH
-Follow the instructions [here](github.com/hukkelas/FDH) to download the FDH dataset. The dataset should be placed in the directory: `data/fdh`.
+Follow the instructions [here](https://www.github.com/hukkelas/FDH) to download the FDH dataset. The dataset should be placed in the directory: `data/fdh`.
 
 
 ## License
