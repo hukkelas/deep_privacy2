@@ -50,7 +50,7 @@ docker build -t deep_privacy2 --build-arg WANDB_API_KEY=YOUR_WANDB_KEY  --build-
 ```
 3. Run the docker image with selected command:
 ```
-docker run --runtime=nvidia --gpus '"device=0"' --name deep_privacy2 --ipc=host -u $(id -u) -v $PWD:/workspace  -v /mnt/work2:/mnt/work2 -it deep_privacy2
+docker run --runtime=nvidia --gpus '"device=0"' --name deep_privacy2 --ipc=host -u $(id -u) -v $PWD:/home/$(id -un) --rm deep_privacy2 python3 anonymize.py configs/anonymizers/deep_privacy1.py -i media/regjeringen.jpg -o output.png
 ```
 
 
