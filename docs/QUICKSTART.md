@@ -1,4 +1,4 @@
-# Install
+# Getting Started
 
 
 ## Install with Anaconda
