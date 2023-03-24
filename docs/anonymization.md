@@ -1,11 +1,11 @@
 # Anonymization
 
-### Available Models
+## Available Models
 DeepPrivacy2 provides various anonymization models. Each model has a training config and an anonymization config.
 - Training Config details the training setup for the generative model.
 - Anonymization config details the inference setup for anonymization. The anonymization config can link to several training configs when multi-modal anonymization is used. See [here](anonymization.md#multi-modal-anonymization) for more info about multi-modal anonymization.
 
-#### Face Anonymization Models
+### Face Anonymization Models
 | Dataset (Resolution) | Detection Type          | Anonymization Config                 | Training Config                | Comment |
 |----------------------|-------------------------|--------------------------------------|--------------------------------| |
 |FDF128 (128x128)     | Face Bbox + 7 Keypoints | [configs/anonymizers/deep_privacy1.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/anonymizers/deep_privacy1.py) | *[configs/fdf/deep_privacy1.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdf/deep_privacy1.py)   | Not recommended unless you have large head rotations.|
@@ -17,7 +17,7 @@ DeepPrivacy2 provides various anonymization models. Each model has a training co
 The **face bbox** is the bounding box detected by [DSFD](http://github.com/hukkelas/DSFD-Pytorch-Inference).
 The **7 keypoints** are the first 7 keypoints detected by a Keypoint R-CNN model trained on COCO, indicating nose, eyes, ears, and shoulders.
 
-#### Full-body Anonymization Models
+### Full-body Anonymization Models
 
 | Detection Type | Anonymization Config | Training Config | Comment |
 |---|---|---| |
@@ -101,3 +101,20 @@ python3 anonymize.py configs/anonymizers/FB_cse.py -i path_to_video.mp4 --output
 ```
 python3 anonymize.py configs/anonymizers/FB_cse.py --webcam
 ```
+
+
+## Multi-modal anonymization
+
+DeepPrivacy2 supports anonymizing individuals detected by different modalities (e.g. faces and bodies).
+
+![](media/header.png)
+
+The following multi-modal anonymization models are provided: 
+
+
+| Config File | Detection Modalities | Synthesis Configs | Modalities |
+| --- |---| ---| --- |
+| [configs/anonymizers/FB_cse_mask_face.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/anonymizers/FB_cse_mask_face.py) | CSE+Segmentation Masks, Segmentation Masks, Face bbox | [configs/fdh/styleganL.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdh/styleganL.py), [configs/fdh/styleganL_nocse.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdh/styleganL_nocse.py), [configs/fdf/stylegan.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdf/stylegan.py) |  Bodies (detected w/CSE), bodies (not detected w/CSE), Faces|
+| [configs/anonymizers/FB_cse_mask.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/anonymizers/FB_cse_mask.py) | CSE+Segmentation Masks, Segmentation Masks | [configs/fdh/styleganL.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdh/styleganL.py), [configs/fdh/styleganL_nocse.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/fdh/styleganL_nocse.py), |  Bodies (detected w/CSE), bodies (not detected w/CSE)|
+
+Note that combining different synthesis networks listed [previously](anonymization.md#available-models) is straightforward, see for eaxmple [configs/anonymizers/FB_cse_mask_face.py](https://github.com/hukkelas/deep_privacy2/blob/master/configs/anonymizers/FB_cse_mask_face.py).

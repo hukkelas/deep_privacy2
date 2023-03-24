@@ -1,6 +1,21 @@
 # Gradio Demos
 
 
+## Face Anonymization
+Test it on [Hugginface](https://huggingface.co/spaces/haakohu/deep_privacy2_face), or run it on your local computer:
+
+```
+python3 -m gradio_demos.face
+```
+
+## Full-body anonymization
+Test it on [Hugginface](https://huggingface.co/spaces/haakohu/deep_privacy2), or run it on your local computer:
+
+```
+python3 -m gradio_demos.body_cse
+```
+
+
 ## Attribute guided anonymization
 DeepPrivacy2 allows for controllable anonymization through text prompts by adapting [StyleMC](https://github.com/catlab-team/stylemc).
 StyleMC finds global semantically meaningful directions in the GAN latent space by manipulating images towards a given text prompt with a [CLIP](https://github.com/openai/CLIP)-based loss.
