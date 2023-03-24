@@ -11,7 +11,12 @@
 DeepPrivacy2 is a toolbox for realistic anonymization of humans, including a face and a full-body anonymizer.
 
 ![](media/g7_leaders.jpg)
-![](docs/media/anonymization_demo.gif)
+
+<p align="center">
+
+<img width="50%" src="docs/media/anonymization_demo.gif" />
+
+</p>
 
 
 DeepPrivacy first detects, then recursively anonymization all individuals in an image with a  Generative Adversarial Network (GAN) that synthesizes one individual at a time.
