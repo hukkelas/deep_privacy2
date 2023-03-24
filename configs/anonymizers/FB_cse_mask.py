@@ -25,5 +25,5 @@ detector = L(CSEPersonDetector)(
 anonymizer = L(Anonymizer)(
     detector="${detector}",
     person_G_cfg="configs/fdh/styleganL_nocse.py",
-    cse_person_G_cfg="configs/fdh/styleganL.py",    
+    cse_person_G_cfg="configs/fdh/styleganL.py",
 )
