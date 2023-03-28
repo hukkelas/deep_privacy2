@@ -94,3 +94,17 @@ This repsitory is released under [Apache 2.0 License](License), except for the f
 - Detection network: See [Detectron2 License](https://github.com/facebookresearch/detectron2/blob/main/LICENSE).
 - All checkpoints follow the license of the datasets. See the respective datasets for more information.
 - Code under `dp2/detection/models/vit_pose`. This code is modified from [https://github.com/gpastal24/ViTPose-Pytorch](https://github.com/gpastal24/ViTPose-Pytorch), where code is adapted from OpenMMLab. Original license is [Apache 2-0](https://github.com/open-mmlab/mmpose/blob/master/LICENSE).
+
+## Citation
+If you find this repository useful, please cite:
+```
+@inproceedings{hukkelas23DP2,
+  author={Hukkelås, Håkon and Lindseth, Frank},
+  booktitle={2023 IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)}, 
+  title={DeepPrivacy2: Towards Realistic Full-Body Anonymization}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={1329-1338},
+  doi={10.1109/WACV56688.2023.00138}}
+```
