@@ -1,17 +1,17 @@
-import hashlib
-from typing import Optional
-import click
-import tops
-import numpy as np
-import tqdm
-import moviepy.editor as mp
 import cv2
-from tops.config import instantiate
-from pathlib import Path
-from PIL import Image
+import tops
+import tqdm
+import click
+import hashlib
+import numpy as np
 from dp2 import utils
-from detectron2.data.detection_utils import _apply_exif_orientation
+from PIL import Image
 from tops import logger
+from pathlib import Path
+from typing import Optional
+import moviepy.editor as mp
+from tops.config import instantiate
+from detectron2.data.detection_utils import _apply_exif_orientation
 from dp2.utils.bufferless_video_capture import BufferlessVideoCapture
 
 
