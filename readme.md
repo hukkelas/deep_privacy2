@@ -28,7 +28,7 @@ DeepPrivacy first detects, then recursively anonymization all individuals in an 
 This repository improves over the original [DeepPrivacy](https://github.com/hukkelas/DeepPrivacy) repository with the following new features:
 - **Full-body anonymization:** Anonymize the entire human body with a single generator
 - **Improved Face Anonymization:** Improved quality and higher resolution (256x256 vs. 128x128) face anonymization without relying on facial landmark detection.
-- **Attribute Guided Anonymiation:** Anonymize faces guided on text prompts using [StyleMC](https://github.com/catlab-team/stylemc).
+- **Attribute Guided Anonymiation:** Anonymize faces guided on text prompts using [StyleMC](https://github.com/catlab-team/stylemc) -  [[Video Demo]](https://www.youtube.com/watch?v=faoNyaaORts).
 - **Code cleanup and general improvements:** Extensive refactoring, bugfixes, and improvements yielding improved results and faster training.
 
 ## Useful Links
