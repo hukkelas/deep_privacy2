@@ -1,10 +1,10 @@
 <center>
 
 # DeepPrivacy2 - A Toolbox for Realistic Image Anonymization
-[[Paper]](https://openaccess.thecvf.com/content/WACV2023/papers/Hukkelas_DeepPrivacy2_Towards_Realistic_Full-Body_Anonymization_WACV_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/WACV2023/supplemental/Hukkelas_DeepPrivacy2_Towards_Realistic_WACV_2023_supplemental.pdf) [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/haakohu/deep_privacy2)
+[[Paper]](https://openaccess.thecvf.com/content/WACV2023/papers/Hukkelas_DeepPrivacy2_Towards_Realistic_Full-Body_Anonymization_WACV_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/WACV2023/supplemental/Hukkelas_DeepPrivacy2_Towards_Realistic_WACV_2023_supplemental.pdf)
 [[Video Demo]](https://youtu.be/Kt3au719hhk)
-[[Conference Presentation]](https://youtu.be/wwKRkkzxKuM)
 [[Documentation]](http://hukkelas.no/deep_privacy2/)
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/haakohu/deep_privacy2)
 
 </center>
 
@@ -21,6 +21,14 @@ DeepPrivacy2 is a toolbox for realistic anonymization of humans, including a fac
 
 DeepPrivacy first detects, then recursively anonymization all individuals in an image with a  Generative Adversarial Network (GAN) that synthesizes one individual at a time.
 ![](docs/media/anonymization_illustration.png)
+
+
+## Published Papers
+This repository provide source code for the following papers
+
+- [[PDF]](https://openaccess.thecvf.com/content/WACV2023/papers/Hukkelas_DeepPrivacy2_Towards_Realistic_Full-Body_Anonymization_WACV_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/WACV2023/supplemental/Hukkelas_DeepPrivacy2_Towards_Realistic_WACV_2023_supplemental.pdf) [[Conference Presentation]](https://youtu.be/wwKRkkzxKuM) DeepPrivacy2: Towards Realistic Full-Body Anonymization. Published at WACV 2023.
+- [[PDF]](https://openaccess.thecvf.com/content/CVPR2023W/WAD/papers/Hukkelas_Does_Image_Anonymization_Impact_Computer_Vision_Training_CVPRW_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/CVPR2023W/WAD/supplemental/Hukkelas_Does_Image_Anonymization_CVPRW_2023_supplemental.pdf) Does Image Anonymization Impact Computer Vision Training? Published at CVPR Workshop on Autonomous Driving 2023.
+- [[PDF]](https://arxiv.org/pdf/2304.03164) [[Appendix]](https://folk.ntnu.no/haakohu/SAA_appendix.pdf) Synthesizing Anyone, Anywhere, in Any Pose. 
 
 
 ## DeepPrivacy2 vs [DeepPrivacy1](https://github.com/hukkelas/DeepPrivacy)
