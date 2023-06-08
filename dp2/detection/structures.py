@@ -441,7 +441,7 @@ class PersonDetection:
         self.boxes = self.boxes[sorted_idx.cpu()]
         self.segmentation = self.segmentation[sorted_idx]
         self.maskrcnn_mask = self.maskrcnn_mask[sorted_idx]
-        if self.keypoints is not None:
+        if self.orig_keypoints is not None:
             self.keypoints = self.keypoints[sorted_idx.cpu()]
 
     def get_crop(self, idx: int, im: torch.Tensor):
@@ -453,7 +453,7 @@ class PersonDetection:
         batch = dict(
             img=im, mask=mask, boxes=box.reshape(1, -1),
             maskrcnn_mask=self.maskrcnn_mask[idx][None].float())
-        if self.keypoints is not None:
+        if self.orig_keypoints is not None:
             batch["keypoints"] = self.keypoints[idx:idx+1]
         return batch
 
@@ -485,7 +485,7 @@ class PersonDetection:
         if len(self) == 0:
             return im
         im = vis_utils.draw_cropped_masks(im.clone(), self.mask.cpu(), self.boxes, visualize_instances=False)
-        if self.keypoints is not None:
+        if self.orig_keypoints is not None:
             im = vis_utils.draw_cropped_keypoints(im, self.keypoints, self.boxes)
         return im
 

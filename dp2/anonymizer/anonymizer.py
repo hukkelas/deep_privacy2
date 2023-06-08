@@ -57,7 +57,6 @@ class Anonymizer:
                   idx: int,
                   all_styles=None):
         batch["img"] = F.normalize(batch["img"].float(), [0.5*255, 0.5*255, 0.5*255], [0.5*255, 0.5*255, 0.5*255])
-        batch["img"] = batch["img"].float()
         batch["condition"] = batch["mask"].float() * batch["img"]
 
         with torch.cuda.amp.autocast(amp):
