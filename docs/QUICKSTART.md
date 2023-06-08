@@ -1,5 +1,10 @@
 # Getting Started
 
+## Requirements
+- Linux and MacOS (CPU only) are supported, but we recommend linux. The code is not tested on Windows, and it might be difficult to install detectron2 for windows (see [here](https://github.com/hukkelas/deep_privacy2/issues/10) for issue).
+- GPU is not required for inference.
+- 1-8 server-grade NVIDIA GPUs with at least 32GB of memory for training.
+- Python >= 3.8.
 
 ## Install with Anaconda
 We recommend to setup and install pytorch with [anaconda](https://www.anaconda.com/) following the [pytorch installation instructions](https://pytorch.org/get-started/locally/).
