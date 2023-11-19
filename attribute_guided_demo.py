@@ -1,5 +1,6 @@
 from collections import defaultdict
 import gradio
+import click
 import numpy as np
 import torch
 import cv2
@@ -8,19 +9,20 @@ from dp2 import utils
 from tops.config import instantiate
 import tops
 import gradio.inputs
-from stylemc import get_and_cache_direction, get_styles
+from stylemc import get_and_cache_direction, get_stylesW, init_affine_modules
 
 
 class GuidedDemo:
-    def __init__(self, face_anonymizer, cfg_face) -> None:
-        self.anonymizer = face_anonymizer
-        assert sum([x is not None for x in list(face_anonymizer.generators.values())]) == 1
-        self.generator = [x for x in list(face_anonymizer.generators.values()) if x is not None][0]
-        face_G_cfg = utils.load_config(cfg_face.anonymizer.face_G_cfg)
-        face_G_cfg.train.batch_size = 1
-        self.dl = instantiate(face_G_cfg.data.val.loader)
-        self.cache_dir = face_G_cfg.output_dir
+    def __init__(self, anonymizer, cfg_face) -> None:
+        self.anonymizer = anonymizer
+        assert sum([x is not None for x in list(anonymizer.generators.values())]) == 1
+        self.generator = [x for x in list(anonymizer.generators.values()) if x is not None][0]
+        cfg = list(anonymizer.generator_cfgs.values())[0]
+        cfg.train.batch_size = 1
+        self.dl = instantiate(cfg.data.val.loader)
+        self.cache_dir = cfg.output_dir
         self.precompute_edits()
+        self.is_first = True
         
     def precompute_edits(self):
         self.precomputed_edits = set()
@@ -50,7 +52,7 @@ class GuidedDemo:
             img, truncation_value=0,
             multi_modal_truncation=True, amp=True,
             cache_id=cache_id,
-            all_styles=edited_styles,
+            all_styles=iter(edited_styles),
             update_identity=update_identity)
         update_identity = [True for i in range(len(update_identity))]
         img = utils.im2numpy(img)
@@ -68,10 +70,14 @@ class GuidedDemo:
             # Need to do forward pass to register all affine modules.
             batch = det.get_crop(i, img)
             batch["condition"] = batch["img"].float()
-
-            s = get_styles(
-                np.random.randint(0, 999999),self.generator,
-            batch, truncation_value=0)
+            if self.multi_modal_truncation:
+                w = self.generator.style_net.multi_modal_truncate(0, n=1)
+            else:
+                w = self.generator.style_net.get_truncated(1, n=1)
+            if self.is_first:
+                init_affine_modules(self.generator, batch)
+            self.is_first = False
+            s = get_stylesW(w) 
             current_styles.append(s)
         update_identity = [True for i in range(len(det))]
         current_boxes = np.array(det.boxes)
@@ -90,6 +96,9 @@ class GuidedDemo:
         edits[face_idx][prompt] = strength
         img, update_identity = self.anonymize(input_image, show_boxes, face_idx, current_styles, current_boxes, update_identity, edits)
         return img, update_identity, edits
+
+    def switch_mmt(self, value):
+        self.multi_modal_truncation = value
     
     def setup_interface(self):
         current_styles = gradio.State()
@@ -98,10 +107,12 @@ class GuidedDemo:
         edits = gradio.State([])
         with gradio.Row():
             input_image = gradio.Image(
-                type="pil", label="Upload your image or try the example below!",source="webcam")
+                type="pil", label="Upload your image or try the example below!", source="webcam")
             output_image = gradio.Image(type="numpy", label="Output")
         with gradio.Row():
             update_btn = gradio.Button("Update Anonymization").style(full_width=True)
+            mmt_btn = gradio.Checkbox(label="Multi Modal anonymization", value=True)
+        
         with gradio.Row():
             show_boxes = gradio.Checkbox(value=True, label="Show Selected")
             cur_face_idx = gradio.Number(value=-1,label="Current", interactive=False)
@@ -114,6 +125,8 @@ class GuidedDemo:
             edit_strength = gradio.Slider(0, 5, step=.01)
             add_btn = gradio.Button("Add Edit")
             add_btn.click(self.add_style, inputs=[cur_face_idx, text_prompt, edit_strength, input_image, show_boxes, current_styles, current_boxes, update_identity, edits], outputs=[output_image, update_identity, edits])
+        mmt_btn.change(self.switch_mmt, inputs=[mmt_btn], outputs=[])
+        self.multi_modal_truncation = mmt_btn.value
         update_btn.click(self.update_image, inputs=[input_image, show_boxes], outputs=[output_image, current_styles, current_boxes, update_identity, edits, cur_face_idx])
         input_image.change(self.update_image, inputs=[input_image, show_boxes], outputs=[output_image, current_styles, current_boxes, update_identity, edits, cur_face_idx])
         previous.click(self.change_face, inputs=[gradio.State(-1), cur_face_idx, current_boxes, input_image, show_boxes, current_styles, update_identity, edits], outputs=[output_image, update_identity, cur_face_idx])
@@ -128,17 +141,20 @@ def pil2torch(img: Image.Image):
     img = np.rollaxis(img, 2)
     return torch.from_numpy(img), None
 
-
-cfg_face = utils.load_config("configs/anonymizers/face.py")
-anonymizer_face = instantiate(cfg_face.anonymizer, load_cache=False)
-anonymizer_face.initialize_tracker(fps=1)
-
-
-with gradio.Blocks() as demo:
-    gradio.Markdown("# <center> DeepPrivacy2 - Realistic Image Anonymization </center>")
-    gradio.Markdown("### <center> Håkon Hukkelås, Rudolf Mester, Frank Lindseth </center>")
-    with gradio.Tab("Text-Guided Anonymization"):
-        GuidedDemo(anonymizer_face, cfg_face).setup_interface()
+@click.command()
+@click.argument("config_path")
+def main(config_path):
+    cfg_face = utils.load_config(config_path)
+    anonymizer_face = instantiate(cfg_face.anonymizer, load_cache=False)
+    anonymizer_face.initialize_tracker(fps=1)
 
 
-demo.launch()
+    with gradio.Blocks() as demo:
+        gradio.Markdown("# <center> DeepPrivacy2 - Realistic Image Anonymization </center>")
+        gradio.Markdown("### <center> Håkon Hukkelås, Rudolf Mester, Frank Lindseth </center>")
+        with gradio.Tab("Text-Guided Anonymization"):
+            GuidedDemo(anonymizer_face, cfg_face).setup_interface()
+
+
+    demo.launch()
+main()

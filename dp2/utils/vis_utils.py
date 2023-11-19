@@ -160,7 +160,7 @@ def draw_keypoints(
             for connection in connectivity:
                 if connection[1] >= len(kpt_inst) or connection[0] >= len(kpt_inst):
                     continue
-                if visible is not None and int(visible[inst_id][connection[1]]) == 0 or int(visible[inst_id][connection[0]]) == 0:
+                if visible is not None and (int(visible[inst_id][connection[1]]) == 0 or int(visible[inst_id][connection[0]]) == 0):
                     continue
 
                 start_pt_x = kpt_inst[connection[0]][0]

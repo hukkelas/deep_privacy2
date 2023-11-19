@@ -18,6 +18,8 @@ def compute_fid_clip(
         dataloader, generator,
         cache_directory,
         data_len=None,
+        truncation_value=None,
+        multi_modal_truncate=False,
         **kwargs
     ) -> dict:
     """
@@ -51,7 +53,10 @@ def compute_fid_clip(
         eidx = sidx + batch["img"].shape[0]
         n_samples_seen += batch["img"].shape[0]
         with torch.cuda.amp.autocast(tops.AMP()):
-            fakes = generator(**batch)["img"]
+            if multi_modal_truncate:
+                fakes = generator.multi_modal_truncate(n=batch["condition"].shape[0], truncation_value=0)["img"]
+            else:
+                fakes = generator.sample(n=batch["condition"].shape[0], truncation_value=truncation_value)["img"]
             real_data = batch["img"]
             fakes = utils.denormalize_img(fakes)
             real_data = utils.denormalize_img(real_data)

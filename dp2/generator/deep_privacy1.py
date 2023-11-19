@@ -583,7 +583,7 @@ class MSGGenerator(BaseGenerator):
             condition,
             mask, keypoints=None, z=None,
             **kwargs):
-        keypoints = keypoints.flatten(start_dim=1).clip(-1, 1)
+        keypoints = keypoints[:, :, :2].flatten(start_dim=1).clip(-1, 1)
         if z is None:
             z = self.get_z(condition)
         z = z.view(-1, 32, 4, 4)

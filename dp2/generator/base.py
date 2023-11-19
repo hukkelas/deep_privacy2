@@ -103,19 +103,23 @@ class SG2StyleNet(torch.nn.Module):
             z = torch.randn((batch_size, self.z_dim), device=tops.get_device())
             self(z, update_emas=True)
 
-    def get_truncated(self, truncation_value, condition, z=None, **kwargs):
+    def get_truncated(self, truncation_value, condition=None, z=None, n=None,**kwargs):
+        if n is None:
+            n = condition.shape[0] if condition is not None else z.shape[0]
         if z is None:
-            z = torch.randn((condition.shape[0], self.z_dim), device=tops.get_device())
+            z = torch.randn((n, self.z_dim), device=tops.get_device())
         w = self(z)
         truncation_value = max(0, truncation_value)
         truncation_value = min(truncation_value, 1)
         return self.w_avg.to(w.dtype).lerp(w, truncation_value)
 
-    def multi_modal_truncate(self, truncation_value, condition, w_indices, z=None, **kwargs):
+    def multi_modal_truncate(self, truncation_value, condition=None, w_indices=None, z=None, n=None,**kwargs):
         truncation_value = max(0, truncation_value)
         truncation_value = min(truncation_value, 1)
+        if n is None:
+            n = len(w_indices) if w_indices is not None else (condition.shape[0] if condition is not None else z.shape[0])
         if z is None:
-            z = torch.randn((condition.shape[0], self.z_dim), device=tops.get_device())
+            z = torch.randn((n, self.z_dim), device=tops.get_device())
         w = self(z)
         if w_indices is None:
             w_indices = np.random.randint(0, len(self.w_centers), size=(len(w)))

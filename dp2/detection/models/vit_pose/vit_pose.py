@@ -133,7 +133,7 @@ class VitPoseModel(nn.Module):
         }[model_name]
         # Set check_hash to true if you suspect a download error.
         weight_path = tops.download_file(
-            weight_url, file_name=file_name, check_hash=True)
+            weight_url, file_name=file_name, check_hash=False)
 
         self.keypoint_head = tops.to_cuda(TopdownHeatmapSimpleHead(
             in_channels=model["keypoint_head"]["in_channels"],

@@ -27,15 +27,15 @@ class MaskRCNNVitPose(BaseDetector):
     def __init__(
             self,
             mask_rcnn_cfg,
-            cse_post_process_cfg,
+            post_process_cfg,
             score_threshold: float,
             **kwargs
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(kwargs["cache_directory"])
         self.mask_rcnn = MaskRCNNDetector(**mask_rcnn_cfg, score_thres=score_threshold)
         self.vit_pose = VitPoseModel("vit_huge")
 
-        self.cse_post_process_cfg = cse_post_process_cfg
+        self.post_process_cfg = post_process_cfg
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
@@ -45,7 +45,7 @@ class MaskRCNNVitPose(BaseDetector):
         with lzma.open(cache_path, "rb") as fp:
             state_dict = torch.load(fp, map_location="cpu")
         kwargs = dict(
-            post_process_cfg=self.cse_post_process_cfg,
+            post_process_cfg=self.post_process_cfg,
         )
         return [
             state["cls"].from_state_dict(**kwargs, state_dict=state)
@@ -63,9 +63,9 @@ class MaskRCNNVitPose(BaseDetector):
         keypoints = self.vit_pose(im, boxes).cpu()
         keypoints[:, :, -1] = keypoints[:, :, -1] >= 0.3
         persons_without_cse = PersonDetection(
-            maskrcnn_person["segmentation"], **self.cse_post_process_cfg,
+            maskrcnn_person["segmentation"], **self.post_process_cfg,
             orig_imshape_CHW=im.shape,
-            keypoints=keypoints
+            keypoints=keypoints,
         )
         persons_without_cse.pre_process()
 

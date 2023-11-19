@@ -50,6 +50,7 @@ def compute_metrics_iteratively(
         cache_directory,
         data_len=None,
         truncation_value: float = None,
+        multi_modal_truncate=False,
 ) -> dict:
     """
     Args:
@@ -82,8 +83,12 @@ def compute_metrics_iteratively(
         eidx = sidx + batch["img"].shape[0]
         n_samples_seen += batch["img"].shape[0]
         with torch.cuda.amp.autocast(tops.AMP()):
-            fakes1 = generator.sample(**batch, truncation_value=truncation_value)["img"]
-            fakes2 = generator.sample(**batch, truncation_value=truncation_value)["img"]
+            if multi_modal_truncate:
+                fakes1 = generator.multi_modal_truncate(n=batch["condition"].shape[0], truncation_value=0)["img"]
+                fakes2 = generator.multi_modal_truncate(n=batch["condition"].shape[0], truncation_value=0)["img"]
+            else:
+                fakes1 = generator.sample(**batch, truncation_value=truncation_value)["img"]
+                fakes2 = generator.sample(**batch, truncation_value=truncation_value)["img"]
             fakes1 = utils.denormalize_img(fakes1).mul(255)
             fakes2 = utils.denormalize_img(fakes2).mul(255)
             real_data = utils.denormalize_img(batch["img"]).mul(255)

@@ -14,6 +14,7 @@ def validate(
         config_path,
         batch_size: int,
         truncation_value: float,
+        multi_modal_truncate: bool,
         world_size,
         temp_dir,
         ):
@@ -34,7 +35,7 @@ def validate(
     G = build_trained_generator(cfg)
     tops.set_seed(0)
     tops.set_AMP(False)
-    metrics = instantiate(cfg.data.evaluation_fn)(generator=G, dataloader=dl_val, truncation_value=truncation_value)
+    metrics = instantiate(cfg.data.evaluation_fn)(generator=G, dataloader=dl_val, truncation_value=truncation_value, multi_modal_truncate=multi_modal_truncate)
     metrics = {f"metrics_final/{k}": v for k,v in metrics.items()}
     if rank == 0:
         tops.init(cfg.output_dir)
@@ -46,17 +47,18 @@ def validate(
 @click.argument("config_path")
 @click.option("--batch_size", default=16, type=int)
 @click.option("--truncation-value", default=None, type=float)
-def main(config_path, batch_size: int, truncation_value: float):
+@click.option("--multi-modal-truncate", "--mmt", default=False, is_flag=True)
+def main(config_path, batch_size: int, truncation_value: float, multi_modal_truncate: bool):
     world_size = torch.cuda.device_count()
     if world_size > 1:
         torch.multiprocessing.set_start_method("spawn", force=True)
         with tempfile.TemporaryDirectory() as temp_dir:
             torch.multiprocessing.spawn(validate,
-                args=(config_path, batch_size, truncation_value, world_size, temp_dir),
+                args=(config_path, batch_size, truncation_value, multi_modal_truncate, world_size, temp_dir),
                 nprocs=world_size)
     else:
         validate(
-            0, config_path, batch_size, truncation_value,
+            0, config_path, batch_size, truncation_value,multi_modal_truncate,
             world_size=1, temp_dir=None)
 
 

@@ -274,4 +274,5 @@ class InsertJointMap(torch.nn.Module):
     def forward(self, batch):
         batch["joint_map"] = torch.from_numpy(self.create_joint_map(
             batch["img"].shape[0], *self.imsize, batch["keypoints"]))
+        batch["joint_map"] = batch["joint_map"].to(batch["img"].device)
         return batch

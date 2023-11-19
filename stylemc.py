@@ -32,18 +32,21 @@ def prompts_dist_loss(x, targets):
     distances = [loss(x, target) for target in targets]
     return torch.stack(distances, dim=-1).sum(dim=-1)
 
+
 affine_modules = None
 max_ch = None
+
 
 @torch.no_grad()
 def init_affine_modules(G, batch):
     global affine_modules, max_ch
     affine_modules = []
     max_ch = 0
-    def forward_hook(block, input_ ,output_):
+
+    def forward_hook(block, input_, output_):
         global max_ch
         affine_modules.append(block)
-        max_ch = max(max_ch, block.affine.out_features*(1+hasattr(block, "affine_beta")))
+        max_ch = max(max_ch, block.affine.out_features * (1 + hasattr(block, "affine_beta")))
     removable_handles = []
     for block in G.modules():
         if hasattr(block, "affine") and hasattr(block.affine, "weight"):
@@ -52,12 +55,28 @@ def init_affine_modules(G, batch):
     for hook in removable_handles:
         hook.remove()
 
+
+@torch.no_grad()
+def get_stylesW(w):
+    global affine_modules, max_ch
+    assert affine_modules is not None, "Have to run init_affine_modules first"
+
+    all_styles = torch.zeros((len(affine_modules), max_ch), device=w.device, dtype=torch.float32)
+    for i, block in enumerate(affine_modules):
+        gamma0 = block.affine(w)
+        if hasattr(block, "affine_beta"):
+            beta0 = block.affine_beta(w)
+            gamma0 = torch.cat((gamma0, beta0), dim=1)
+        all_styles[i] = F.pad(gamma0, ((0, max_ch - gamma0.shape[-1])), "constant", 0)
+
+    return all_styles
+
 @torch.no_grad()
 def get_styles(seed, G: torch.nn.Module, batch, truncation_value=1):
     global affine_modules, max_ch
     if affine_modules is None:
         init_affine_modules(G, batch)
-    w = G.style_net.get_truncated(truncation_value, **batch, seed=seed)
+    w = G.style_net.get_truncated(truncation_value, n=batch["condition"].shape[0], seed=seed)
 
     all_styles = torch.zeros((len(affine_modules), max_ch), device=batch["img"].device, dtype=torch.float32)
     for i, block in enumerate(affine_modules):
@@ -65,28 +84,26 @@ def get_styles(seed, G: torch.nn.Module, batch, truncation_value=1):
         if hasattr(block, "affine_beta"):
             beta0 = block.affine_beta(w)
             gamma0 = torch.cat((gamma0, beta0), dim=1)
-        all_styles[i] = F.pad(gamma0, ((0, max_ch - gamma0.shape[-1])), "constant", 0) 
+        all_styles[i] = F.pad(gamma0, ((0, max_ch - gamma0.shape[-1])), "constant", 0)
 
     return all_styles
 
 
 def get_and_cache_direction(output_dir: Path, dl_val, G, text_prompt):
-    cache_path = output_dir.joinpath(
-        "stylemc_cache", text_prompt.replace(" ", "_") + ".torch")
+    cache_path = output_dir.joinpath("stylemc_cache", text_prompt.replace(" ", "_") + ".torch")
     if cache_path.is_file():
-        print("Loaded cache from:", cache_path)
         return torch.load(cache_path)
     direction = find_direction(G, text_prompt, dl_val=iter(dl_val))
     cache_path.parent.mkdir(exist_ok=True, parents=True)
     torch.save(direction, cache_path)
     return direction
 
-
+@torch.enable_grad()
 @torch.cuda.amp.autocast()
 def find_direction(
     G,
     text_prompt,
-    n_iterations=128*8*10,
+    n_iterations=128 * 8 * 10,
     batch_size=8,
     dl_val=None
 ):
@@ -119,7 +136,7 @@ def find_direction(
         img = G(**batch, s=iter(styles))["img"]
 
         # clip loss
-        img = (img + 1)/2
+        img = (img + 1) / 2
         img = normalize(img, mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
         img = resize(img, (224, 224))
         embeds = clip_model.encode_image(img)
@@ -156,25 +173,23 @@ def main(config_path: str, text_prompt: str, n: int):
     direction = get_and_cache_direction(cfg.output_dir, dl_val, G, text_prompt)
     output_dir = Path("stylemc_results")
     output_dir.mkdir(exist_ok=True, parents=True)
-    save = lambda x, path: Image.fromarray(utils.im2numpy(x, True, True)[0]).save(path)
     strenghts = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 1.0]
     for i, batch in enumerate(iter(dl_val)):
         imgs = []
-        
+
         img = vis_utils.visualize_batch(**batch)
         img = tops.im2numpy(img, False)[0]
         imgs.append(img)
         if i > n:
             break
         for strength in strenghts:
-            styles = get_styles(i, G, batch, truncation_value=0) + direction*strength
+            styles = get_styles(i, G, batch, truncation_value=0) + direction * strength
             img = G(**batch, s=iter(styles))["img"]
             imgs.append(utils.im2numpy(img, True, True)[0])
-        
+
         img = tops.np_make_image_grid(imgs, nrow=1)
         Image.fromarray(img).save(output_dir.joinpath(f"results_{i}.png"))
 
 
 if __name__ == "__main__":
     main()
-    

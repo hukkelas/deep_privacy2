@@ -59,6 +59,7 @@ def build_trained_discriminator(cfg, map_location=None):
 
 
 def load_state_dict(module: torch.nn.Module, state_dict: dict):
+    ignore_key = "style_net.w_centers" # Loaded by buyild_trained_generator
     module_sd = module.state_dict()
     to_remove = []
     for key, item in state_dict.items():
@@ -70,8 +71,10 @@ def load_state_dict(module: torch.nn.Module, state_dict: dict):
     for key in to_remove:
         state_dict.pop(key)
     for key, item in state_dict.items():
+        if key == ignore_key:
+            continue
         if key not in module_sd:
-            warn(f"Did not fin key in model state dict: {key}")
+            warn(f"Did not find key in model state dict: {key}")
     for key, item in module_sd.items():
         if key not in state_dict:
             warn(f"Did not find key in state dict: {key}")

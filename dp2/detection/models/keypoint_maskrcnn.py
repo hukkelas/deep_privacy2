@@ -51,7 +51,7 @@ def get_rn50_fpn_keypoint_rcnn(weight_path: str):
 
 
 models = {
-    "rn50_fpn_maskrcnn": functools.partial(get_rn50_fpn_keypoint_rcnn, weight_path="https://folk.ntnu.no/haakohu/checkpoints/maskrcnn_keypoint/keypoint_maskrcnn_R_50_FPN_1x.pth")
+    "rn50_fpn_maskrcnn": functools.partial(get_rn50_fpn_keypoint_rcnn, weight_path="https://api.loke.aws.unit.no/dlr-gui-backend-resources-content/v2/contents/links/532a57f3-594b-4ec9-a6db-ef2e328ad60ae337668e-a83c-4222-9fa0-cec6f91adf4841b9a42e-a28e-403e-8b96-d55ac443b8c6")
 }
 
 

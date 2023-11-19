@@ -44,3 +44,14 @@ Follow the instructions [here](https://github.com/hukkelas/FDF/blob/master/FDF25
 ### FDH
 Follow the instructions [here](https://www.github.com/hukkelas/FDH) to download the FDH dataset. The dataset should be placed in the directory: `data/fdh`.
 
+#### FDH for TriA-GAN paper
+
+TriA-GAN requires the FDH dataset to be prepared for progressive growing training. This can be done by first downloading the dataset to 'data/fdh'.
+Then, run:
+```
+python3 -m tools.dataset.copy_fdh_remove_embedding
+```
+Followed by
+```
+python3 -m tools.dataset.create_webdataset_progressive
+```

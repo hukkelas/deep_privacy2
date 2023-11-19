@@ -26,7 +26,6 @@ class LatentHistogramMatchAnonymizer(Anonymizer):
         all_styles=None,
     ):
         batch["img"] = F.normalize(batch["img"].float(), [0.5*255, 0.5*255, 0.5*255], [0.5*255, 0.5*255, 0.5*255])
-        batch["img"] = batch["img"].float()
         batch["condition"] = batch["mask"].float() * batch["img"]
 
         assert z_idx is None and all_styles is None, "Arguments not supported with n_sampling_steps > 1."
@@ -37,16 +36,15 @@ class LatentHistogramMatchAnonymizer(Anonymizer):
             bins=torch.linspace(0, 1, 256, dtype=torch.float32, device=tops.get_device()),
             bandwidth=torch.tensor(1., device=tops.get_device()))
         real_hist = [histogram(real_hls[:, i].flatten(start_dim=1), **hist_kwargs) for i in indices]
+        if multi_modal_truncation:
+            w = G.style_net.multi_modal_truncate(
+                truncation_value=truncation_value, n=batch["condition"].shape[0]).detach()
+        else:
+            w = G.style_net.get_truncated(truncation_value, n=batch["condition"].shape[0]).detach()
+        assert z_idx is None and all_styles is None, "Arguments not supported with n_sampling_steps > 1."
+        w.requires_grad = True
+        optim = torch.optim.Adam([w])
         for j in range(n_sampling_steps):
-            if j == 0:
-                if multi_modal_truncation:
-                    w = G.style_net.multi_modal_truncate(
-                        truncation_value=truncation_value, **batch, w_indices=None).detach()
-                else:
-                    w = G.style_net.get_truncated(truncation_value, **batch).detach()
-                assert z_idx is None and all_styles is None, "Arguments not supported with n_sampling_steps > 1."
-                w.requires_grad = True
-                optim = torch.optim.Adam([w])
             with torch.set_grad_enabled(True):
                 with torch.cuda.amp.autocast(amp):
                     anonymized_im = G(**batch, truncation_value=None, w=w)["img"]
@@ -68,13 +66,9 @@ class LatentHistogramMatchAnonymizer(Anonymizer):
 
 class HistogramMatchAnonymizer(Anonymizer):
 
-    def forward_G(self, batch, *args, **kwargs):
+    def forward_G(self, G, batch, *args, **kwargs):
         rimg = batch["img"]
-        batch["img"] = F.normalize(batch["img"].float(), [0.5*255, 0.5*255, 0.5*255], [0.5*255, 0.5*255, 0.5*255])
-        batch["img"] = batch["img"].float()
-        batch["condition"] = batch["mask"].float() * batch["img"]
-
-        anonymized_im = super().forward_G(batch, *args, **kwargs)
+        anonymized_im = super().forward_G(G, batch, *args, **kwargs)
 
         equalized_gim = match_histograms(tops.im2numpy(anonymized_im.round().clamp(0, 255).byte()), tops.im2numpy(rimg))
         if equalized_gim.dtype != np.uint8:

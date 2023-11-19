@@ -10,6 +10,7 @@ from .box_utils import get_expanded_bbox, include_box
 import torchvision
 import tops
 from .box_utils_fdf import expand_bbox as expand_bbox_fdf
+from dp2.data.transforms.transforms import InsertJointMap
 
 
 class VehicleDetection:
@@ -88,7 +89,9 @@ class FaceDetection:
             im = torchvision.utils.draw_bounding_boxes(im.cpu(), e_box[None], colors=(0, 0, 255), width=2)
         im = torchvision.utils.draw_bounding_boxes(im.cpu(), self.boxes, colors=(255, 0, 0), width=2)
         if self.orig_keypoints is not None:
-            im = vis_utils.draw_keypoints(im, self.orig_keypoints, radius=1)
+            _, _, connectivity = vis_utils.get_coco_keypoints()
+            connectivity = connectivity[:5]
+            im = vis_utils.draw_keypoints(im, self.orig_keypoints, radius=1, connectivity=connectivity, width=3)
 
         return im.to(device=orig_device)
 
@@ -120,6 +123,8 @@ class FaceDetection:
         w = expanded_boxes[2] - expanded_boxes[0]
         keypoint /= w
         keypoint = keypoint.clamp(0, 1)
+        keypoint = torch.cat((keypoint, torch.ones(
+            keypoint.shape[0], 1, device=keypoint.device, dtype=keypoint.dtype)), dim=-1)
         return dict(
             img=im[None], mask=mask[None],
             boxes=torch.from_numpy(expanded_boxes).view(1, -1),
@@ -157,8 +162,8 @@ def remove_dilate_in_pad(mask: torch.Tensor, exp_box, orig_imshape):
     p_y1 = max(y1 - H, 0)
     p_x0 = max(0, -x0)
     p_x1 = max(x1 - W, 0)
-    resize_ratio = mask.shape[-2] / (y1-y0)
-    p_x0, p_y0, p_x1, p_y1 = [(_*resize_ratio).floor().long() for _ in [p_x0, p_y0, p_x1, p_y1]]
+    resize_ratio = mask.shape[-2] / (y1 - y0)
+    p_x0, p_y0, p_x1, p_y1 = [(_ * resize_ratio).floor().long() for _ in [p_x0, p_y0, p_x1, p_y1]]
     mask[..., :p_y0, :] = 0
     mask[..., :p_x0] = 0
     mask[..., mask.shape[-2] - p_y1:, :] = 0
@@ -187,7 +192,7 @@ class CSEPersonDetection:
         self.normalize_embedding = normalize_embedding
         if self.normalize_embedding:
             embed_map_mean = self.embed_map.mean(dim=0, keepdim=True)
-            embed_map_rstd = ((self.embed_map - embed_map_mean).square().mean(dim=0, keepdim=True)+1e-8).rsqrt()
+            embed_map_rstd = ((self.embed_map - embed_map_mean).square().mean(dim=0, keepdim=True) + 1e-8).rsqrt()
             self.embed_map_normalized = (self.embed_map - embed_map_mean) * embed_map_rstd
         self.orig_imshape_CHW = orig_imshape_CHW
 
@@ -201,7 +206,7 @@ class CSEPersonDetection:
         for i in range(len(boxes)):
             exp_box = get_expanded_bbox(
                 boxes[i], self.orig_imshape_CHW[1:], self.segmentation[i], **self.exp_bbox_cfg,
-                target_aspect_ratio=self.target_imsize[0]/self.target_imsize[1])
+                target_aspect_ratio=self.target_imsize[0] / self.target_imsize[1])
             if not include_box(exp_box, imshape=self.orig_imshape_CHW[1:], **self.exp_bbox_filter):
                 continue
             included_boxes.append(i)
@@ -213,9 +218,10 @@ class CSEPersonDetection:
         self.mask = torch.empty((len(expanded_boxes), *self.target_imsize), device=tops.get_device(), dtype=torch.bool)
         area = self.segmentation.sum(dim=[1, 2]).view(len(expanded_boxes))
         for i, box in enumerate(expanded_boxes):
-            self.mask[i] = cut_pad_resize(self.segmentation[i:i+1], box, self.target_imsize)[0]
+            self.mask[i] = cut_pad_resize(self.segmentation[i:i + 1], box, self.target_imsize)[0]
 
-        dilation_kernel = get_kernel(int((self.target_imsize[0]*self.target_imsize[1])**0.5*self.dilation_percentage))
+        dilation_kernel = get_kernel(
+            int((self.target_imsize[0] * self.target_imsize[1])**0.5 * self.dilation_percentage))
         self.maskrcnn_mask = self.mask.clone().logical_not()[:, None]
         self.mask = utils.binary_dilation(self.mask[:, None], dilation_kernel)
         for i in range(len(expanded_boxes)):
@@ -228,7 +234,7 @@ class CSEPersonDetection:
         self.mask = self.mask.logical_not()
 
         E_mask = torch.zeros((self.n_detections, 1, *self.target_imsize), device=self.mask.device, dtype=torch.bool)
-        self.vertices = torch.zeros_like(E_mask,  dtype=torch.long)
+        self.vertices = torch.zeros_like(E_mask, dtype=torch.long)
         for i in range(self.n_detections):
             E_, E_mask[i] = transform_embedding(
                 self.cse_dets["instance_embedding"][i],
@@ -238,7 +244,7 @@ class CSEPersonDetection:
                 self.target_imsize
             )
             self.vertices[i] = utils.from_E_to_vertex(
-                E_[None], E_mask[i:i+1].logical_not(), self.embed_map).squeeze()[None]
+                E_[None], E_mask[i:i + 1].logical_not(), self.embed_map).squeeze()[None]
         self.E_mask = E_mask
 
         sorted_idx = torch.argsort(area, descending=False)
@@ -368,9 +374,9 @@ def shift_and_preprocess_keypoints(keypoints: torch.Tensor, boxes):
     keypoints[:, :, 0] = (keypoints[:, :, 0] - x0) / w
     keypoints[:, :, 1] = (keypoints[:, :, 1] - y0) / h
     def check_outside(x): return (x < 0).logical_or(x > 1)
-    is_outside = check_outside(keypoints[:, :,  0]).logical_or(check_outside(keypoints[:, :,  1]))
+    is_outside = check_outside(keypoints[:, :, 0]).logical_or(check_outside(keypoints[:, :, 1]))
     keypoints[:, :, 2] = keypoints[:, :, 2] > 0
-    keypoints[:, :,  2] = (keypoints[:, :,  2] > 0).logical_and(is_outside.logical_not())
+    keypoints[:, :, 2] = (keypoints[:, :, 2] > 0).logical_and(is_outside.logical_not())
     return keypoints
 
 
@@ -385,6 +391,7 @@ class PersonDetection:
             orig_imshape_CHW,
             kp_vis_thr=None,
             keypoints=None,
+            insert_joint_map=False,
             **kwargs) -> None:
         self.segmentation = segmentation
         self.target_imsize = list(target_imsize)
@@ -397,6 +404,9 @@ class PersonDetection:
         if keypoints is not None:
             assert kp_vis_thr is not None
             self.kp_vis_thr = kp_vis_thr
+        if insert_joint_map:
+            self.joint_map_transform = InsertJointMap(target_imsize)
+        
 
     @torch.no_grad()
     def pre_process(self):
@@ -408,7 +418,7 @@ class PersonDetection:
         for i in range(len(boxes)):
             exp_box = get_expanded_bbox(
                 boxes[i], self.orig_imshape_CHW[1:], self.segmentation[i], **self.exp_bbox_cfg,
-                target_aspect_ratio=self.target_imsize[0]/self.target_imsize[1])
+                target_aspect_ratio=self.target_imsize[0] / self.target_imsize[1])
             if not include_box(exp_box, imshape=self.orig_imshape_CHW[1:], **self.exp_bbox_filter):
                 continue
             included_boxes.append(i)
@@ -421,10 +431,11 @@ class PersonDetection:
         area = self.segmentation.sum(dim=[1, 2]).view(len(expanded_boxes)).cpu()
         self.mask = torch.empty((len(expanded_boxes), *self.target_imsize), device=tops.get_device(), dtype=torch.bool)
         for i, box in enumerate(expanded_boxes):
-            self.mask[i] = cut_pad_resize(self.segmentation[i:i+1], box, self.target_imsize)[0]
+            self.mask[i] = cut_pad_resize(self.segmentation[i:i + 1], box, self.target_imsize)[0]
         if self.orig_keypoints is not None:
             self.keypoints = shift_and_preprocess_keypoints(self.keypoints, expanded_boxes)
-        dilation_kernel = get_kernel(int((self.target_imsize[0]*self.target_imsize[1])**0.5*self.dilation_percentage))
+        dilation_kernel = get_kernel(
+            int((self.target_imsize[0] * self.target_imsize[1])**0.5 * self.dilation_percentage))
         self.maskrcnn_mask = self.mask.clone().logical_not()[:, None]
         self.mask = utils.binary_dilation(self.mask[:, None], dilation_kernel)
         for i in range(len(expanded_boxes)):
@@ -454,7 +465,9 @@ class PersonDetection:
             img=im, mask=mask, boxes=box.reshape(1, -1),
             maskrcnn_mask=self.maskrcnn_mask[idx][None].float())
         if self.orig_keypoints is not None:
-            batch["keypoints"] = self.keypoints[idx:idx+1]
+            batch["keypoints"] = self.keypoints[idx:idx + 1]
+        if hasattr(self, "joint_map_transform"):
+            batch = self.joint_map_transform(batch)
         return batch
 
     def __len__(self):
@@ -487,6 +500,7 @@ class PersonDetection:
         im = vis_utils.draw_cropped_masks(im.clone(), self.mask.cpu(), self.boxes, visualize_instances=False)
         if self.orig_keypoints is not None:
             im = vis_utils.draw_cropped_keypoints(im, self.keypoints, self.boxes)
+        im = torchvision.utils.draw_bounding_boxes(im, self.boxes, colors=(255, 0, 0), width=2)
         return im
 
 

@@ -28,7 +28,7 @@ This repository provide source code for the following papers
 
 - [[PDF]](https://openaccess.thecvf.com/content/WACV2023/papers/Hukkelas_DeepPrivacy2_Towards_Realistic_Full-Body_Anonymization_WACV_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/WACV2023/supplemental/Hukkelas_DeepPrivacy2_Towards_Realistic_WACV_2023_supplemental.pdf) [[Conference Presentation]](https://youtu.be/wwKRkkzxKuM) DeepPrivacy2: Towards Realistic Full-Body Anonymization. Published at WACV 2023.
 - [[PDF]](https://openaccess.thecvf.com/content/CVPR2023W/WAD/papers/Hukkelas_Does_Image_Anonymization_Impact_Computer_Vision_Training_CVPRW_2023_paper.pdf) [[Appendix]](https://openaccess.thecvf.com/content/CVPR2023W/WAD/supplemental/Hukkelas_Does_Image_Anonymization_CVPRW_2023_supplemental.pdf) Does Image Anonymization Impact Computer Vision Training? Published at CVPR Workshop on Autonomous Driving 2023.
-- [[PDF]](https://arxiv.org/pdf/2304.03164) [[Appendix]](https://folk.ntnu.no/haakohu/SAA_appendix.pdf) Synthesizing Anyone, Anywhere, in Any Pose. 
+- [[PDF]](https://arxiv.org/pdf/2304.03164) [[Appendix]](https://api.loke.aws.unit.no/dlr-gui-backend-resources-content/v2/contents/links/09a4db16-7c09-4de5-890d-60ad608813b9ed8ba261-2b76-499d-ad50-f5351a5518e54be5b525-0280-4d04-97bd-8a701e3e5f42) Synthesizing Anyone, Anywhere, in Any Pose. 
 
 
 ## DeepPrivacy2 vs [DeepPrivacy1](https://github.com/hukkelas/DeepPrivacy)

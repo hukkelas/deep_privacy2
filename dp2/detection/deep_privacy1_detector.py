@@ -23,7 +23,7 @@ def match_bbox_keypoint(bounding_boxes, keypoints):
         keypoints: [N persons, K keypoints, (x, y)]
     """
     if len(bounding_boxes) == 0 or len(keypoints) == 0:
-        return torch.empty((0, 5)), torch.empty((0, 7, 2))
+        return torch.empty((0, 4)), torch.empty((0, 7, 2))
     assert bounding_boxes.shape[1] == 4,\
         f"Shape was : {bounding_boxes.shape}"
     assert keypoints.shape[-1] == 2,\

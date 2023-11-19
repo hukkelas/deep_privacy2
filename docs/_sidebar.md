@@ -3,3 +3,4 @@
 - [Development and Dataset Setup](training_and_development.md)
 - [Gradio Demos](gradio_demos.md)
 - [Building the Docs](building.md)
+- [Anonymizing datasets](anonymizing_datasets.md)
