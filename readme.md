@@ -84,12 +84,12 @@ See the [documentation](https://www.hukkelas.no/deep_privacy2/#/anonymization) f
 ### Gradio Demos
 The repository includes gradio demos to show of the capabilities of DeepPrivacy2.
 
-**Face anonymization**. Test it on [Hugginface](https://huggingface.co/spaces/haakohu/deep_privacy2_face).
+**Face anonymization**. Test it on [Hugging Face](https://huggingface.co/spaces/haakohu/deep_privacy2_face).
 ```
 python3 -m gradio_demos.face
 ```
 
-**Full-body anonymization**. Test it on [Hugginface](https://huggingface.co/spaces/haakohu/deep_privacy2).
+**Full-body anonymization**. Test it on [Hugging Face](https://huggingface.co/spaces/haakohu/deep_privacy2).
 ```
 python3 -m gradio_demos.body_cse
 ```
