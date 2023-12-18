@@ -13,6 +13,7 @@ from dp2.detection.structures import (
     PersonDetection,
     VehicleDetection,
 )
+from tops import logger
 from stylemc import get_and_cache_direction, get_stylesW, init_affine_modules
 
 
@@ -100,7 +101,12 @@ class Anonymizer:
         state = np.random.RandomState(seed=z_idx)
         z = state.normal(size=(1, G.z_channels)).astype(np.float32)
         z = tops.to_cuda(torch.from_numpy(z))
-        if multi_modal_truncation:
+        if not hasattr(G, "style_net"):
+            if multi_modal_truncation:
+                logger.warn("The current generator does not support multi-modal truncation.")
+            w = None 
+            z = G.get_z(z=z, truncation_value=truncation_value)
+        elif multi_modal_truncation:
             w = G.style_net.multi_modal_truncate(
                 truncation_value,
                 w_indices=[z_idx % len(G.style_net.w_centers)],
@@ -181,6 +187,7 @@ class Anonymizer:
     def visualize_detection(
         self, im: torch.Tensor, cache_id: str = None
     ) -> torch.Tensor:
+        im = tops.to_cuda(im)
         all_detections = self.detector.forward_and_cache(
             im, cache_id, load_cache=self.load_cache
         )
@@ -203,7 +210,7 @@ class Anonymizer:
         all_detections = detections
         if detections is None:
             if self.load_cache:
-                all_detections = self.detector.forward_and_cache(im, cache_id)
+                all_detections = self.detector.forward_and_cache(im, cache_id, load_cache=True)
             else:
                 all_detections = self.detector(im)
         if hasattr(self, "tracker") and track:

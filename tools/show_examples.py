@@ -24,7 +24,7 @@ def get_im(dl, G, num_images, num_z, fscale_vis, truncation_value: float, b_idx,
             # Sample same Z by setting seed for different images
             tops.set_seed(b_idx*num_z + z_idx)
             if multi_modal_truncation and z_idx > 0:
-                fake = G.multi_modal_truncate(n=batch["condition"].shape[0], truncation_value=0, w_indices=[z_idx-1])
+                fake = G.multi_modal_truncate(**batch, truncation_value=0, w_indices=[z_idx-1])
             else:
                 fake = G.sample(**batch, truncation_value=truncation_value)
             if "x_lowres" in fake and show_lowres:
