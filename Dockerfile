@@ -25,7 +25,8 @@ RUN pip install \
     tensorboard \
     tqdm \
     ninja==1.10.2 \
-    opencv-python==4.5.5.64 \
+    opencv-python-headless==4.5.5.64 \
+    ftfy==6.1.3 \
     moviepy \
     pyspng \
     git+https://github.com/hukkelas/DSFD-Pytorch-Inference \
